@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { waitForFonts, type FontReadiness } from "./fonts.ts";
 
-function fakeFonts(opts: {
+function fakeFonts(options: {
   ready: Promise<FontFaceSet | void>;
   available: string[];
 }): FontReadiness {
   return {
-    ready: opts.ready as Promise<FontFaceSet>,
-    check: (font: string) => opts.available.some((name) => font.includes(name)),
+    // `ready` only needs to resolve/hang for these tests and does not need to
+    // resolve to a real `FontFaceSet`.
+    ready: options.ready as Promise<FontFaceSet>,
+    check: (font: string) =>
+      options.available.some((name) => font.includes(name)),
   };
 }
 

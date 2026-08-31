@@ -1,10 +1,12 @@
+/**
+ * The subset of `FontFaceSet` that `waitForFonts` needs.
+ */
 export type FontReadiness = Pick<FontFaceSet, "ready" | "check">;
 
 /**
- * Waits for `fonts.ready` (or `timeoutMs`, whichever comes first — a font that
- * never loads shouldn't hang the app), then reports which of `fontNames` are
- * actually available via `FontFaceSet.check`. `fonts` defaults to
- * `document.fonts` but is a parameter so this stays testable without a DOM.
+ * Waits for `fonts.ready` or `timeoutMs`, whichever comes first, so that the
+ * caller can check for the availability of requested fonts without hanging
+ * indefinitely.
  */
 export async function waitForFonts(
   fontNames: string[],

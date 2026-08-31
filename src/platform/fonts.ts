@@ -4,9 +4,8 @@
 export type FontReadiness = Pick<FontFaceSet, "ready" | "check">;
 
 /**
- * Waits for `fonts.ready` or `timeoutMs`, whichever comes first, so that the
- * caller can check for the availability of requested fonts without hanging
- * indefinitely.
+ * Waits for `fonts.ready` or `timeoutMs`, whichever is first, then reports
+ * which fonts are available — never hangs indefinitely.
  */
 export async function waitForFonts(
   fontNames: string[],

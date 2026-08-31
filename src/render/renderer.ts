@@ -135,7 +135,10 @@ function drawStaveRow(
       voices,
       toVexKeySignature(keyAt(score, measure.startTick)),
     );
-    new Formatter().joinVoices(voices).format(voices, MEASURE_WIDTH - 20);
+    // formatToStave (not a fixed width) accounts for the clef/time signature
+    // already eating into measure 0's stave — a fixed width overflows past
+    // the barline on exactly the measures that carry those modifiers.
+    new Formatter().joinVoices(voices).formatToStave(voices, stave);
     voices.forEach((voice) => voice.draw(ctx, stave));
   }
 }

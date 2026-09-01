@@ -103,7 +103,9 @@ function buildVoiceForPart(
 // need every row's topLineY first, so renderScore fills them in afterward.
 type PartialStaveBox = Omit<StaveBox, "y0" | "y1">;
 
-function drawStaveRow(
+// Exported for testability: exercised directly with a fake RenderContext in
+// renderer.test.ts, without needing a browser or jsdom.
+export function drawStaveRow(
   ctx: RenderContext,
   score: Score,
   assignment: StaveAssignment,

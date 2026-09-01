@@ -1,7 +1,12 @@
 import { diatonicToY, hitTest, tickToX } from "./hit-test.ts";
 import type { LayoutIndex } from "./layout-index.ts";
 
-const GHOST_NOTE_RX = 4.5;
+// Measured against a rendered notehead glyph (getBBox()): ~11.8px wide at
+// this render scale. Real noteheads are <text> with the default
+// text-anchor="start", so their x is the glyph's LEFT edge, not its center —
+// unlike an SVG ellipse's cx. Matching that width/anchor convention below
+// keeps the ghost's ink over the same span a real note's would occupy.
+const GHOST_NOTE_RX = 6;
 const GHOST_NOTE_RY = 3.5;
 const GHOST_NOTE_TILT_DEGREES = -20;
 
@@ -53,11 +58,15 @@ export function attachGhostNote(
     }
 
     const ghostY = diatonicToY(hit.diatonic, hit.box);
-    ghost.setAttribute("cx", String(ghostX));
+    // +GHOST_NOTE_RX: shift the ellipse's center right by its own radius, so
+    // its LEFT edge lands at the anchor x — matching a real notehead glyph's
+    // left-anchored rendering instead of centering on it.
+    const ghostCx = ghostX + GHOST_NOTE_RX;
+    ghost.setAttribute("cx", String(ghostCx));
     ghost.setAttribute("cy", String(ghostY));
     ghost.setAttribute(
       "transform",
-      `rotate(${GHOST_NOTE_TILT_DEGREES} ${ghostX} ${ghostY})`,
+      `rotate(${GHOST_NOTE_TILT_DEGREES} ${ghostCx} ${ghostY})`,
     );
     ghost.style.display = "";
   }

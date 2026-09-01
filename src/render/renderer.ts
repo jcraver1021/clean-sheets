@@ -16,7 +16,12 @@ import type {
   StaveAssignment,
 } from "../model/score.ts";
 import { computeClaimRegions } from "./layout-index.ts";
-import type { LayoutIndex, MeasureBox, StaveBox } from "./layout-index.ts";
+import type {
+  LayoutIndex,
+  MeasureBox,
+  NoteAnchor,
+  StaveBox,
+} from "./layout-index.ts";
 import {
   stemFor,
   toVexDuration,
@@ -68,6 +73,10 @@ function buildStaveNote(
   return new StaveNote({ keys, duration, dots, clef: vexClef, stemDirection });
 }
 
+// Carries events alongside their notes so the caller can pair each note's
+// real formatted position (only known after voice.draw()) back to its tick.
+type PartVoice = { voice: Voice; events: NoteEvent[]; notes: StaveNote[] };
+
 function buildVoiceForPart(
   score: Score,
   partId: string,
@@ -75,10 +84,11 @@ function buildVoiceForPart(
   vexClef: string,
   writtenShift: number,
   stemDirection: number | undefined,
-): Voice {
+): PartVoice {
   const measure = score.measures[measureIndex];
   if (!measure) throw new Error(`No measure at index ${measureIndex}`);
-  const notes = eventsForMeasure(score, partId, measureIndex).map((event) =>
+  const events = eventsForMeasure(score, partId, measureIndex);
+  const notes = events.map((event) =>
     buildStaveNote(event, score, vexClef, writtenShift, stemDirection),
   );
   const voice = new Voice({
@@ -86,7 +96,7 @@ function buildVoiceForPart(
     beatValue: measure.timeSig.beatType,
   }).setStrict(false);
   voice.addTickables(notes);
-  return voice;
+  return { voice, events, notes };
 }
 
 // Everything a stave row contributes to the layout index except y0/y1: those
@@ -130,7 +140,7 @@ function drawStaveRow(
     topLineY = stave.getYForLine(0);
     lineSpacing = stave.getSpacingBetweenLines();
 
-    const voices = assignment.partIds.map((partId, indexInStave) =>
+    const partVoices = assignment.partIds.map((partId, indexInStave) =>
       buildVoiceForPart(
         score,
         partId,
@@ -140,6 +150,7 @@ function drawStaveRow(
         stemFor(assignment.partIds.length, indexInStave),
       ),
     );
+    const voices = partVoices.map((partVoice) => partVoice.voice);
 
     Accidental.applyAccidentals(
       voices,
@@ -151,14 +162,28 @@ function drawStaveRow(
     new Formatter().joinVoices(voices).formatToStave(voices, stave);
     voices.forEach((voice) => voice.draw(ctx, stave));
 
-    // The note-bearing span, not an equal split of MEASURE_WIDTH — matches
-    // what formatToStave actually laid out (see hit-test.ts's xToTick).
+    // Real positions, not an equal split of MEASURE_WIDTH — VexFlow spaces
+    // notes non-uniformly, so hit-test.ts interpolates between these
+    // (falling back to noteStartX/noteEndX only outside their range).
+    // Simultaneous notes across voices land on the same x (joinVoices), so
+    // later voices simply overwrite earlier ones for a given tick.
+    const anchorsByTick = new Map<number, number>();
+    for (const partVoice of partVoices) {
+      partVoice.events.forEach((event, i) =>
+        anchorsByTick.set(event.tick, partVoice.notes[i]!.getAbsoluteX()),
+      );
+    }
+    const noteAnchors: NoteAnchor[] = [...anchorsByTick.entries()]
+      .map(([tick, x]) => ({ tick, x }))
+      .sort((a, b) => a.tick - b.tick);
+
     measures.push({
       index: measureIndex,
       x0: stave.getNoteStartX(),
       x1: stave.getNoteEndX(),
       startTick: measure.startTick,
       endTick: measureEndTick(score, measure),
+      noteAnchors,
     });
   }
 

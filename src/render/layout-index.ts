@@ -1,11 +1,21 @@
 import type { Clef } from "../model/score.ts";
 
+/**
+ * A real note's onset tick and its formatted x, captured after drawing.
+ */
+export type NoteAnchor = { tick: number; x: number };
+
+/**
+ * One measure's geometry within a stave: its x-range, tick-range, and the
+ * real note positions (`noteAnchors`) hit-test.ts interpolates between.
+ */
 export type MeasureBox = {
   index: number;
   x0: number;
   x1: number;
   startTick: number;
   endTick: number;
+  noteAnchors: NoteAnchor[]; // Sorted by tick; hit-test.ts interpolates between these, not an even split across x0..x1.
 };
 
 /**
@@ -29,6 +39,10 @@ export type StaveBox = {
   measures: MeasureBox[];
 };
 
+/**
+ * The full layout hit-testing reads from: every stave's box, captured during
+ * the draw pass.
+ */
 export type LayoutIndex = {
   pageCount?: number; // Stage 7.
   staves: StaveBox[];

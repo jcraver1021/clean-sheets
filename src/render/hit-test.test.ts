@@ -16,7 +16,16 @@ function box(overrides: Partial<StaveBox>): StaveBox {
     y1: Infinity,
     topLineY: 100,
     lineSpacing: LINE_SPACING,
-    measures: [{ index: 0, x0: 0, x1: 200, startTick: 0, endTick: 3840 }],
+    measures: [
+      {
+        index: 0,
+        x0: 0,
+        x1: 200,
+        startTick: 0,
+        endTick: 3840,
+        noteAnchors: [],
+      },
+    ],
     ...overrides,
   };
 }
@@ -62,7 +71,16 @@ describe("yToDiatonic", () => {
 describe("xToTick", () => {
   it("maps linearly across the measure and snaps to the grid", () => {
     const b = box({
-      measures: [{ index: 0, x0: 0, x1: 200, startTick: 0, endTick: 3840 }],
+      measures: [
+        {
+          index: 0,
+          x0: 0,
+          x1: 200,
+          startTick: 0,
+          endTick: 3840,
+          noteAnchors: [],
+        },
+      ],
     });
     expect(xToTick(0, b, 960)).toBe(0);
     expect(xToTick(100, b, 960)).toBe(1920); // halfway -> beat 2 of 4
@@ -72,16 +90,55 @@ describe("xToTick", () => {
     // 3/4 bar (2880 ticks) with a half-note (960*2) grid doesn't divide evenly;
     // clicking at the very end must not overshoot into the next measure.
     const b = box({
-      measures: [{ index: 0, x0: 0, x1: 200, startTick: 0, endTick: 2880 }],
+      measures: [
+        {
+          index: 0,
+          x0: 0,
+          x1: 200,
+          startTick: 0,
+          endTick: 2880,
+          noteAnchors: [],
+        },
+      ],
     });
     expect(xToTick(200, b, 1920)).toBe(960); // 2880 - 1920, not 2880
   });
 
   it("returns null outside every measure", () => {
     const b = box({
-      measures: [{ index: 0, x0: 0, x1: 200, startTick: 0, endTick: 3840 }],
+      measures: [
+        {
+          index: 0,
+          x0: 0,
+          x1: 200,
+          startTick: 0,
+          endTick: 3840,
+          noteAnchors: [],
+        },
+      ],
     });
     expect(xToTick(300, b, 960)).toBeNull();
+  });
+
+  it("prefers a real note anchor over the naive linear guess", () => {
+    // A naive straight line from x0=0 to x1=200 would put tick 960 at x=50;
+    // a real (non-uniformly spaced) note there is captured at x=80 instead.
+    const b = box({
+      measures: [
+        {
+          index: 0,
+          x0: 0,
+          x1: 200,
+          startTick: 0,
+          endTick: 3840,
+          noteAnchors: [{ tick: 960, x: 80 }],
+        },
+      ],
+    });
+    expect(xToTick(80, b, 960)).toBe(960);
+    // tickToX doesn't snap, so it exposes the raw interpolated value: halfway
+    // to the real anchor (40), not halfway across the naive linear span (25).
+    expect(tickToX(480, b)).toBe(40);
   });
 });
 

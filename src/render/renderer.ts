@@ -23,6 +23,7 @@ import type {
   StaveBox,
 } from "./layout-index.ts";
 import {
+  decomposeDurationTicks,
   stemFor,
   toVexDuration,
   toVexKey,
@@ -77,6 +78,43 @@ function buildStaveNote(
 // real formatted position (only known after voice.draw()) back to its tick.
 type PartVoice = { voice: Voice; events: NoteEvent[]; notes: StaveNote[] };
 
+/**
+ * Fills every silent stretch between `startTick` and `endTick` that `events`
+ * doesn't cover with explicit rests. VexFlow's per-voice tick accounting
+ * only knows the tickables it's handed, not our model's absolute ticks — a
+ * silent gap (e.g. a deleted note) must become rests, or everything after it
+ * in that voice drifts out of alignment with the rest of the stave.
+ */
+function fillGapsWithRests(
+  events: NoteEvent[],
+  startTick: number,
+  endTick: number,
+  divisions: number,
+): NoteEvent[] {
+  const filled: NoteEvent[] = [];
+  let cursor = startTick;
+  const restAt = (tick: number, durationTicks: number): NoteEvent => ({
+    id: `rest-${tick}`,
+    tick,
+    durationTicks,
+    pitches: [],
+  });
+
+  for (const event of events) {
+    for (const gap of decomposeDurationTicks(event.tick - cursor, divisions)) {
+      filled.push(restAt(cursor, gap));
+      cursor += gap;
+    }
+    filled.push(event);
+    cursor = event.tick + event.durationTicks;
+  }
+  for (const gap of decomposeDurationTicks(endTick - cursor, divisions)) {
+    filled.push(restAt(cursor, gap));
+    cursor += gap;
+  }
+  return filled;
+}
+
 function buildVoiceForPart(
   score: Score,
   partId: string,
@@ -87,7 +125,12 @@ function buildVoiceForPart(
 ): PartVoice {
   const measure = score.measures[measureIndex];
   if (!measure) throw new Error(`No measure at index ${measureIndex}`);
-  const events = eventsForMeasure(score, partId, measureIndex);
+  const events = fillGapsWithRests(
+    eventsForMeasure(score, partId, measureIndex),
+    measure.startTick,
+    measureEndTick(score, measure),
+    score.divisions,
+  );
   const notes = events.map((event) =>
     buildStaveNote(event, score, vexClef, writtenShift, stemDirection),
   );

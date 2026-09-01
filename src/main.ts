@@ -1,7 +1,21 @@
 import "./style.css";
 import { LAYOUTS_BY_KIND, createDemoScore } from "./demo-score.ts";
+import { deleteEventAt, insertNote } from "./edit/commands.ts";
+import { commit, getScore, initHistory, redo, undo } from "./edit/history.ts";
+import {
+  getActiveDurationTicks,
+  getActivePartId,
+  getMode,
+  resolveAlter,
+  setAccidentalOverride,
+  setActiveDurationTicks,
+  setActivePartId,
+  setMode,
+} from "./edit/tools.ts";
+import { fromDiatonic } from "./model/pitch.ts";
 import { waitForFonts } from "./platform/fonts.ts";
 import { attachGhostNote } from "./render/cursor.ts";
+import { hitTest } from "./render/hit-test.ts";
 import type { LayoutIndex } from "./render/layout-index.ts";
 import { renderScore } from "./render/renderer.ts";
 import { createControlPanel } from "./ui/control-panel.ts";
@@ -14,26 +28,56 @@ if (!ready) {
   console.warn(`Fonts not ready before first render: ${missing.join(", ")}`);
 }
 
-const score = createDemoScore();
 const container = document.querySelector<HTMLDivElement>("#score")!;
 const controlsMount = document.querySelector<HTMLDivElement>("#controls")!;
-const { layoutToggle } = createControlPanel(controlsMount);
 
 let layoutIndex: LayoutIndex = { staves: [] };
-function rerender() {
-  layoutIndex = renderScore(container, score);
+function rerender(): void {
+  layoutIndex = renderScore(container, getScore());
 }
 
-layoutToggle.addEventListener("click", () => {
-  score.layout =
-    score.layout.kind === "grandStaff"
-      ? LAYOUTS_BY_KIND.openScore
-      : LAYOUTS_BY_KIND.grandStaff;
-  rerender();
+const initialScore = createDemoScore();
+setActivePartId(initialScore.parts[0]!.id);
+initHistory(initialScore, rerender);
+
+createControlPanel(controlsMount, getScore().parts, {
+  onToggleLayout: () =>
+    commit((score) => {
+      score.layout =
+        score.layout.kind === "grandStaff"
+          ? LAYOUTS_BY_KIND.openScore
+          : LAYOUTS_BY_KIND.grandStaff;
+    }),
+  onPartChange: setActivePartId,
+  onDurationChange: setActiveDurationTicks,
+  onAccidentalChange: setAccidentalOverride,
+  onModeChange: setMode,
+  onUndo: undo,
+  onRedo: redo,
 });
 
-rerender();
+container.addEventListener("click", (event) => {
+  const svg = container.querySelector("svg");
+  if (!svg) return;
+  const rect = svg.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const hit = hitTest(x, y, layoutIndex, getActiveDurationTicks());
+  if (!hit) return;
 
-// Stage 2 predates the duration palette, so the grid is hardcoded to a
-// quarter note until edit/tools.ts exists (Stage 3).
-attachGhostNote(container, () => layoutIndex, score.divisions);
+  const partId = getActivePartId();
+  if (getMode() === "delete") {
+    commit((score) => deleteEventAt(score, partId, hit.tick));
+    return;
+  }
+
+  const { step, octave } = fromDiatonic(hit.diatonic);
+  commit((score) => {
+    const alter = resolveAlter(score, hit.tick, step);
+    insertNote(score, partId, hit.tick, getActiveDurationTicks(), [
+      { step, octave, alter },
+    ]);
+  });
+});
+
+attachGhostNote(container, () => layoutIndex, getActiveDurationTicks);

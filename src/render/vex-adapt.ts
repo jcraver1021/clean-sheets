@@ -56,6 +56,37 @@ export function toVexDuration(
 }
 
 /**
+ * Greedily splits `gapTicks` into the fewest power-of-two note durations
+ * (whole down to 256th) that sum to it exactly. VexFlow's per-voice tick
+ * accounting only knows the tickables it's handed, not our model's absolute
+ * ticks — a silent gap (e.g. a deleted note) must become explicit rests, or
+ * everything after it in that voice drifts out of alignment with the rest
+ * of the stave.
+ */
+export function decomposeDurationTicks(
+  gapTicks: number,
+  divisions: number,
+): number[] {
+  const wholeNoteTicks = divisions * 4;
+  const pieces: number[] = [];
+  let remaining = gapTicks;
+  for (const code of BASE_DURATION_CODES) {
+    const baseTicks = wholeNoteTicks / code;
+    if (!Number.isInteger(baseTicks)) continue;
+    while (baseTicks <= remaining) {
+      pieces.push(baseTicks);
+      remaining -= baseTicks;
+    }
+  }
+  if (remaining > 0) {
+    throw new Error(
+      `Gap of ${gapTicks} ticks doesn't decompose into standard durations`,
+    );
+  }
+  return pieces;
+}
+
+/**
  * Stem direction by position in a stave's voices, not part identity — part
  * count isn't fixed, so "soprano up / alto down" generalizes to "first
  * voice up, alternating." A single-voice stave falls back to VexFlow's

@@ -2,6 +2,7 @@ import "./style.css";
 import { LAYOUTS_BY_KIND, createDemoScore } from "./demo-score.ts";
 import { waitForFonts } from "./platform/fonts.ts";
 import { renderScore } from "./render/renderer.ts";
+import { createControlPanel } from "./ui/control-panel.ts";
 
 // VexFlow's SMuFL glyphs are <text> in the Bravura web font, loaded async
 // without being awaited on import — drawing before it's ready misaligns
@@ -13,8 +14,8 @@ if (!ready) {
 
 const score = createDemoScore();
 const container = document.querySelector<HTMLDivElement>("#score")!;
-const layoutToggle =
-  document.querySelector<HTMLButtonElement>("#layout-toggle")!;
+const controlsMount = document.querySelector<HTMLDivElement>("#controls")!;
+const { layoutToggle } = createControlPanel(controlsMount);
 
 layoutToggle.addEventListener("click", () => {
   score.layout =

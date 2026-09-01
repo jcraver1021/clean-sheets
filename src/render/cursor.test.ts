@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { createDemoScore } from "../demo-score.ts";
 import { GHOST_NOTE_RX, computeGhostPosition } from "./cursor.ts";
 import { tickToX } from "./hit-test.ts";
+import { computeClaimRegions } from "./layout-index.ts";
 import type { LayoutIndex, StaveBox } from "./layout-index.ts";
+import { drawStaveRow } from "./renderer.ts";
+import {
+  fakeRenderContext,
+  installFakeTextMeasurementCanvas,
+} from "./vexflow-mocks.ts";
 
 function box(): StaveBox {
   return {
@@ -57,5 +64,33 @@ describe("computeGhostPosition", () => {
     const b = box();
     const layoutIndex: LayoutIndex = { staves: [b] };
     expect(computeGhostPosition(b.x1 + 50, 105, layoutIndex, 960)).toBeNull();
+  });
+});
+
+describe("computeGhostPosition against a real rendered stave", () => {
+  installFakeTextMeasurementCanvas();
+
+  it("hovering exactly on a real note offsets from its real anchor by GHOST_NOTE_RX", () => {
+    const score = createDemoScore();
+    const partial = drawStaveRow(
+      fakeRenderContext(),
+      score,
+      score.layout.staves[0]!,
+      0,
+    );
+    const [claimRegion] = computeClaimRegions([partial.topLineY]);
+    const staveBox: StaveBox = { ...partial, ...claimRegion! };
+    const layoutIndex: LayoutIndex = { staves: [staveBox] };
+
+    const anchor = staveBox.measures[0]!.noteAnchors[0]!;
+    const position = computeGhostPosition(
+      anchor.x,
+      staveBox.topLineY,
+      layoutIndex,
+      score.divisions,
+    );
+
+    expect(position).not.toBeNull();
+    expect(position!.cx).toBe(anchor.x + GHOST_NOTE_RX);
   });
 });

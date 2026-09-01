@@ -1,5 +1,5 @@
 import "./style.css";
-import { LAYOUTS_BY_KIND, createDemoScore } from "./demo-score.ts";
+import { createDemoScore } from "./demo-score.ts";
 import { deleteEventAt, insertNote } from "./edit/commands.ts";
 import { commit, getScore, initHistory, redo, undo } from "./edit/history.ts";
 import {
@@ -41,13 +41,6 @@ setActivePartId(initialScore.parts[0]!.id);
 initHistory(initialScore, rerender);
 
 createControlPanel(controlsMount, getScore().parts, {
-  onToggleLayout: () =>
-    commit((score) => {
-      score.layout =
-        score.layout.kind === "grandStaff"
-          ? LAYOUTS_BY_KIND.openScore
-          : LAYOUTS_BY_KIND.grandStaff;
-    }),
   onPartChange: setActivePartId,
   onDurationChange: setActiveDurationTicks,
   onAccidentalChange: setAccidentalOverride,

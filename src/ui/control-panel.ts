@@ -2,7 +2,6 @@ import type { AccidentalOverride, EditMode } from "../edit/tools.ts";
 import type { Part } from "../model/score.ts";
 
 export type ControlPanelCallbacks = {
-  onToggleLayout: () => void;
   onPartChange: (partId: string) => void;
   onDurationChange: (durationTicks: number) => void;
   onAccidentalChange: (override: AccidentalOverride) => void;
@@ -12,7 +11,6 @@ export type ControlPanelCallbacks = {
 };
 
 export type ControlPanel = {
-  layoutToggle: HTMLButtonElement;
   partSelect: HTMLSelectElement;
   undoButton: HTMLButtonElement;
   redoButton: HTMLButtonElement;
@@ -77,12 +75,6 @@ export function createControlPanel(
   parts: Array<Pick<Part, "id" | "name">>,
   callbacks: ControlPanelCallbacks,
 ): ControlPanel {
-  const layoutToggle = document.createElement("button");
-  layoutToggle.type = "button";
-  layoutToggle.textContent = "Toggle layout";
-  layoutToggle.addEventListener("click", callbacks.onToggleLayout);
-  mountPoint.append(layoutToggle);
-
   const partSelect = document.createElement("select");
   for (const part of parts) {
     const option = document.createElement("option");
@@ -126,5 +118,5 @@ export function createControlPanel(
   redoButton.addEventListener("click", callbacks.onRedo);
   mountPoint.append(redoButton);
 
-  return { layoutToggle, partSelect, undoButton, redoButton };
+  return { partSelect, undoButton, redoButton };
 }

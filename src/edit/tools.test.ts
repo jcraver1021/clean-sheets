@@ -12,7 +12,7 @@ function fixtureScore(keyFifths: number): Score {
       { index: 0, startTick: 0, timeSig: { beats: 4, beatType: 4 }, keyFifths },
     ],
     tempoMap: [{ tick: 0, bpm: 96 }],
-    layout: { kind: "openScore", staves: [] },
+    layout: { staves: [] },
     lyricDisplay: { kind: "perPart" },
   };
 }

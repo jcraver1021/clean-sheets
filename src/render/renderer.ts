@@ -1,5 +1,6 @@
 import {
   Accidental,
+  Beam,
   Formatter,
   Renderer,
   Stave,
@@ -35,7 +36,11 @@ import {
 // (Stage 2) applies it in reverse.
 const TREBLE_8VB_WRITTEN_SHIFT = 7;
 
-const MEASURE_WIDTH = 220;
+// Wide enough that a sixteenth-note slot (a beat's worth of width / 4) stays
+// comfortably clickable even after formatToStave redistributes space around
+// whatever's actually in the measure — a fixed 220px left slots as narrow as
+// ~9px, well under reliable mouse precision.
+const MEASURE_WIDTH = 500;
 const STAVE_ROW_HEIGHT = 110;
 const SYSTEM_LEFT_MARGIN = 10;
 const SYSTEM_TOP_MARGIN = 20;
@@ -206,6 +211,19 @@ export function drawStaveRow(
     // the barline on exactly the measures that carry those modifiers.
     new Formatter().joinVoices(voices).formatToStave(voices, stave);
     voices.forEach((voice) => voice.draw(ctx, stave));
+
+    // maintainStemDirections: true keeps our SATB stem convention (stemFor)
+    // instead of letting generateBeams reassign stems by pitch.
+    const beamGroups = Beam.getDefaultBeamGroups(
+      `${measure.timeSig.beats}/${measure.timeSig.beatType}`,
+    );
+    partVoices.forEach((partVoice) => {
+      const beams = Beam.generateBeams(partVoice.notes, {
+        maintainStemDirections: true,
+        groups: beamGroups,
+      });
+      beams.forEach((beam) => beam.setContext(ctx).draw());
+    });
 
     // Real positions, not an equal split of MEASURE_WIDTH — VexFlow spaces
     // notes non-uniformly, so hit-test.ts interpolates between these

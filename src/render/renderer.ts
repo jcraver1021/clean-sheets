@@ -8,13 +8,15 @@ import {
 } from "vexflow";
 import type { RenderContext } from "vexflow";
 import { toDiatonic } from "../model/pitch.ts";
-import { eventsForMeasure, keyAt } from "../model/query.ts";
+import { eventsForMeasure, keyAt, measureEndTick } from "../model/query.ts";
 import type {
   Clef,
   NoteEvent,
   Score,
   StaveAssignment,
 } from "../model/score.ts";
+import { computeClaimRegions } from "./layout-index.ts";
+import type { LayoutIndex, MeasureBox, StaveBox } from "./layout-index.ts";
 import {
   stemFor,
   toVexDuration,
@@ -87,16 +89,23 @@ function buildVoiceForPart(
   return voice;
 }
 
+// Everything a stave row contributes to the layout index except y0/y1: those
+// need every row's topLineY first, so renderScore fills them in afterward.
+type PartialStaveBox = Omit<StaveBox, "y0" | "y1">;
+
 function drawStaveRow(
   ctx: RenderContext,
   score: Score,
   assignment: StaveAssignment,
   rowIndex: number,
-): void {
+): PartialStaveBox {
   const vexClef = toVexClefName(assignment.clef);
   const writtenShift =
     assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0;
   const y = SYSTEM_TOP_MARGIN + rowIndex * STAVE_ROW_HEIGHT;
+  const measures: MeasureBox[] = [];
+  let topLineY = 0;
+  let lineSpacing = 0;
 
   for (
     let measureIndex = 0;
@@ -108,7 +117,6 @@ function drawStaveRow(
     const x = SYSTEM_LEFT_MARGIN + measureIndex * MEASURE_WIDTH;
     const stave = new Stave(x, y, MEASURE_WIDTH);
     if (measureIndex === 0) {
-      // '8vb' is cosmetic; TREBLE_8VB_WRITTEN_SHIFT does the transposing.
       stave.addClef(
         vexClef,
         "default",
@@ -119,6 +127,8 @@ function drawStaveRow(
       );
     }
     stave.setContext(ctx).draw();
+    topLineY = stave.getYForLine(0);
+    lineSpacing = stave.getSpacingBetweenLines();
 
     const voices = assignment.partIds.map((partId, indexInStave) =>
       buildVoiceForPart(
@@ -140,13 +150,39 @@ function drawStaveRow(
     // the barline on exactly the measures that carry those modifiers.
     new Formatter().joinVoices(voices).formatToStave(voices, stave);
     voices.forEach((voice) => voice.draw(ctx, stave));
+
+    // The note-bearing span, not an equal split of MEASURE_WIDTH — matches
+    // what formatToStave actually laid out (see hit-test.ts's xToTick).
+    measures.push({
+      index: measureIndex,
+      x0: stave.getNoteStartX(),
+      x1: stave.getNoteEndX(),
+      startTick: measure.startTick,
+      endTick: measureEndTick(score, measure),
+    });
   }
+
+  return {
+    systemIndex: 0,
+    staveIndex: rowIndex,
+    clef: assignment.clef,
+    partIds: assignment.partIds,
+    x0: SYSTEM_LEFT_MARGIN,
+    x1: SYSTEM_LEFT_MARGIN + score.measures.length * MEASURE_WIDTH,
+    topLineY,
+    lineSpacing,
+    measures,
+  };
 }
 
 /**
- * Draws `score` into `container` as SVG, one row per stave in the layout.
+ * Draws `score` into `container` as SVG, one row per stave in the layout,
+ * and returns the layout index that hit-testing (Stage 2) reads from.
  */
-export function renderScore(container: HTMLDivElement, score: Score): void {
+export function renderScore(
+  container: HTMLDivElement,
+  score: Score,
+): LayoutIndex {
   container.replaceChildren();
   const renderer = new Renderer(container, Renderer.Backends.SVG);
   renderer.resize(
@@ -155,7 +191,16 @@ export function renderScore(container: HTMLDivElement, score: Score): void {
   );
   const ctx = renderer.getContext();
 
-  score.layout.staves.forEach((assignment, rowIndex) =>
+  const partialBoxes = score.layout.staves.map((assignment, rowIndex) =>
     drawStaveRow(ctx, score, assignment, rowIndex),
   );
+  const claimRegions = computeClaimRegions(
+    partialBoxes.map((box) => box.topLineY),
+  );
+  const staves: StaveBox[] = partialBoxes.map((box, i) => ({
+    ...box,
+    ...claimRegions[i]!,
+  }));
+
+  return { staves };
 }

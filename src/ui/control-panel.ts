@@ -1,9 +1,8 @@
-import type { AccidentalOverride, EditMode } from "../edit/tools.ts";
+import type { AccidentalOverride } from "../edit/tools.ts";
 
 export type ControlPanelCallbacks = {
   onDurationChange: (durationTicks: number) => void;
   onAccidentalChange: (override: AccidentalOverride) => void;
-  onModeChange: (mode: EditMode) => void;
   onUndo: () => void;
   onRedo: () => void;
 };
@@ -33,12 +32,6 @@ const ACCIDENTALS: Array<{ label: string; override: AccidentalOverride }> = [
 ];
 const DEFAULT_ACCIDENTAL_INDEX = 0; // Auto, matching edit/tools.ts's default.
 
-const MODES: Array<{ label: string; mode: EditMode }> = [
-  { label: "Insert", mode: "insert" },
-  { label: "Delete", mode: "delete" },
-];
-const DEFAULT_MODE_INDEX = 0; // Insert, matching edit/tools.ts's default.
-
 /** A mutually-exclusive row of buttons; only one carries the "active" class at a time. */
 function createButtonGroup<T>(
   mountPoint: HTMLElement,
@@ -66,8 +59,9 @@ function createButtonGroup<T>(
 /**
  * Builds the toolbar's controls into `mountPoint` and wires them straight to
  * `callbacks` — main.ts owns what each control does, this just presents them.
- * There's no part selector: with one stave per part, which part an edit
- * targets comes from which line the mouse is on, not a separate control.
+ * There's no part selector (which part an edit targets comes from which line
+ * the mouse is on) and no insert/delete mode toggle (left click inserts,
+ * right click deletes).
  */
 export function createControlPanel(
   mountPoint: HTMLElement,
@@ -84,12 +78,6 @@ export function createControlPanel(
     ACCIDENTALS.map((a) => ({ label: a.label, value: a.override })),
     DEFAULT_ACCIDENTAL_INDEX,
     callbacks.onAccidentalChange,
-  );
-  createButtonGroup(
-    mountPoint,
-    MODES.map((m) => ({ label: m.label, value: m.mode })),
-    DEFAULT_MODE_INDEX,
-    callbacks.onModeChange,
   );
 
   const undoButton = document.createElement("button");

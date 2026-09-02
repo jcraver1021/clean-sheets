@@ -4,11 +4,9 @@ import { deleteEventAt, insertNote } from "./edit/commands.ts";
 import { commit, getScore, initHistory, redo, undo } from "./edit/history.ts";
 import {
   getActiveDurationTicks,
-  getMode,
   resolveAlter,
   setAccidentalOverride,
   setActiveDurationTicks,
-  setMode,
 } from "./edit/tools.ts";
 import { fromDiatonic } from "./model/pitch.ts";
 import { waitForFonts } from "./platform/fonts.ts";
@@ -39,37 +37,50 @@ initHistory(createDemoScore(), rerender);
 createControlPanel(controlsMount, {
   onDurationChange: setActiveDurationTicks,
   onAccidentalChange: setAccidentalOverride,
-  onModeChange: setMode,
   onUndo: undo,
   onRedo: redo,
 });
 
-container.addEventListener("click", (event) => {
+// Returns null if the click missed both the SVG and any hit-testable note
+// slot — callers bail out in that case.
+function hitFromMouseEvent(
+  event: MouseEvent,
+): { partId: string; tick: number; diatonic: number } | null {
   const svg = container.querySelector("svg");
-  if (!svg) return;
+  if (!svg) return null;
   const rect = svg.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
   const hit = hitTest(x, y, layoutIndex, getActiveDurationTicks());
-  if (!hit) return;
+  if (!hit) return null;
 
   // One stave per part now that hymnal mode is gone, so which line the
   // click landed on IS the part it targets — no separate part selector.
   const partId = hit.box.partIds[0];
-  if (!partId) return;
+  if (!partId) return null;
+  return { partId, tick: hit.tick, diatonic: hit.diatonic };
+}
 
-  if (getMode() === "delete") {
-    commit((score) => deleteEventAt(score, partId, hit.tick));
-    return;
-  }
+// Left click inserts, right click deletes — no separate mode toggle.
+container.addEventListener("click", (event) => {
+  const hit = hitFromMouseEvent(event);
+  if (!hit) return;
 
   const { step, octave } = fromDiatonic(hit.diatonic);
   commit((score) => {
     const alter = resolveAlter(score, hit.tick, step);
-    insertNote(score, partId, hit.tick, getActiveDurationTicks(), [
+    insertNote(score, hit.partId, hit.tick, getActiveDurationTicks(), [
       { step, octave, alter },
     ]);
   });
+});
+
+container.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  const hit = hitFromMouseEvent(event);
+  if (!hit) return;
+
+  commit((score) => deleteEventAt(score, hit.partId, hit.tick));
 });
 
 attachGhostNote(container, () => layoutIndex, getActiveDurationTicks);

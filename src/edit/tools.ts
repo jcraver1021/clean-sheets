@@ -2,14 +2,11 @@ import { alterFromKeyFifths } from "../model/key.ts";
 import { keyAt } from "../model/query.ts";
 import type { Pitch, Score, Step } from "../model/score.ts";
 
-export type EditMode = "insert" | "delete";
-
 /** `null` means derive the accidental from the key signature instead of overriding it. */
 export type AccidentalOverride = Pitch["alter"] | null;
 
 let activeDurationTicks = 960; // A quarter note at the spec's divisions=960.
 let accidentalOverride: AccidentalOverride = null;
-let mode: EditMode = "insert";
 
 export function setActiveDurationTicks(durationTicks: number): void {
   activeDurationTicks = durationTicks;
@@ -23,13 +20,6 @@ export function setAccidentalOverride(override: AccidentalOverride): void {
 }
 export function getAccidentalOverride(): AccidentalOverride {
   return accidentalOverride;
-}
-
-export function setMode(next: EditMode): void {
-  mode = next;
-}
-export function getMode(): EditMode {
-  return mode;
 }
 
 /** The alter a newly-placed `step` should get: the override if set, else the key signature's. */

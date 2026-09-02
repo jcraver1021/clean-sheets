@@ -1,8 +1,6 @@
 import type { AccidentalOverride, EditMode } from "../edit/tools.ts";
-import type { Part } from "../model/score.ts";
 
 export type ControlPanelCallbacks = {
-  onPartChange: (partId: string) => void;
   onDurationChange: (durationTicks: number) => void;
   onAccidentalChange: (override: AccidentalOverride) => void;
   onModeChange: (mode: EditMode) => void;
@@ -11,7 +9,6 @@ export type ControlPanelCallbacks = {
 };
 
 export type ControlPanel = {
-  partSelect: HTMLSelectElement;
   undoButton: HTMLButtonElement;
   redoButton: HTMLButtonElement;
 };
@@ -69,24 +66,13 @@ function createButtonGroup<T>(
 /**
  * Builds the toolbar's controls into `mountPoint` and wires them straight to
  * `callbacks` — main.ts owns what each control does, this just presents them.
+ * There's no part selector: with one stave per part, which part an edit
+ * targets comes from which line the mouse is on, not a separate control.
  */
 export function createControlPanel(
   mountPoint: HTMLElement,
-  parts: Array<Pick<Part, "id" | "name">>,
   callbacks: ControlPanelCallbacks,
 ): ControlPanel {
-  const partSelect = document.createElement("select");
-  for (const part of parts) {
-    const option = document.createElement("option");
-    option.value = part.id;
-    option.textContent = part.name;
-    partSelect.append(option);
-  }
-  partSelect.addEventListener("change", () =>
-    callbacks.onPartChange(partSelect.value),
-  );
-  mountPoint.append(partSelect);
-
   createButtonGroup(
     mountPoint,
     DURATIONS.map((d) => ({ label: d.label, value: d.ticks })),
@@ -118,5 +104,5 @@ export function createControlPanel(
   redoButton.addEventListener("click", callbacks.onRedo);
   mountPoint.append(redoButton);
 
-  return { partSelect, undoButton, redoButton };
+  return { undoButton, redoButton };
 }

@@ -210,20 +210,25 @@ export function drawStaveRow(
     // already eating into measure 0's stave — a fixed width overflows past
     // the barline on exactly the measures that carry those modifiers.
     new Formatter().joinVoices(voices).formatToStave(voices, stave);
-    voices.forEach((voice) => voice.draw(ctx, stave));
 
+    // Beams must exist before the notes are drawn: StaveNote.hasFlag() is
+    // false once a note has a beam attached, but that only suppresses the
+    // flag glyph if it's set before draw() runs — attaching the beam
+    // afterward doesn't retroactively undraw an already-rendered flag.
     // maintainStemDirections: true keeps our SATB stem convention (stemFor)
     // instead of letting generateBeams reassign stems by pitch.
     const beamGroups = Beam.getDefaultBeamGroups(
       `${measure.timeSig.beats}/${measure.timeSig.beatType}`,
     );
-    partVoices.forEach((partVoice) => {
-      const beams = Beam.generateBeams(partVoice.notes, {
+    const beams = partVoices.flatMap((partVoice) =>
+      Beam.generateBeams(partVoice.notes, {
         maintainStemDirections: true,
         groups: beamGroups,
-      });
-      beams.forEach((beam) => beam.setContext(ctx).draw());
-    });
+      }),
+    );
+
+    voices.forEach((voice) => voice.draw(ctx, stave));
+    beams.forEach((beam) => beam.setContext(ctx).draw());
 
     // Real positions, not an equal split of MEASURE_WIDTH — VexFlow spaces
     // notes non-uniformly, so hit-test.ts interpolates between these

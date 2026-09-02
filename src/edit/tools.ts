@@ -7,17 +7,9 @@ export type EditMode = "insert" | "delete";
 /** `null` means derive the accidental from the key signature instead of overriding it. */
 export type AccidentalOverride = Pitch["alter"] | null;
 
-let activePartId = "";
 let activeDurationTicks = 960; // A quarter note at the spec's divisions=960.
 let accidentalOverride: AccidentalOverride = null;
 let mode: EditMode = "insert";
-
-export function setActivePartId(partId: string): void {
-  activePartId = partId;
-}
-export function getActivePartId(): string {
-  return activePartId;
-}
 
 export function setActiveDurationTicks(durationTicks: number): void {
   activeDurationTicks = durationTicks;

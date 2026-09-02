@@ -4,12 +4,10 @@ import { deleteEventAt, insertNote } from "./edit/commands.ts";
 import { commit, getScore, initHistory, redo, undo } from "./edit/history.ts";
 import {
   getActiveDurationTicks,
-  getActivePartId,
   getMode,
   resolveAlter,
   setAccidentalOverride,
   setActiveDurationTicks,
-  setActivePartId,
   setMode,
 } from "./edit/tools.ts";
 import { fromDiatonic } from "./model/pitch.ts";
@@ -36,12 +34,9 @@ function rerender(): void {
   layoutIndex = renderScore(container, getScore());
 }
 
-const initialScore = createDemoScore();
-setActivePartId(initialScore.parts[0]!.id);
-initHistory(initialScore, rerender);
+initHistory(createDemoScore(), rerender);
 
-createControlPanel(controlsMount, getScore().parts, {
-  onPartChange: setActivePartId,
+createControlPanel(controlsMount, {
   onDurationChange: setActiveDurationTicks,
   onAccidentalChange: setAccidentalOverride,
   onModeChange: setMode,
@@ -58,7 +53,11 @@ container.addEventListener("click", (event) => {
   const hit = hitTest(x, y, layoutIndex, getActiveDurationTicks());
   if (!hit) return;
 
-  const partId = getActivePartId();
+  // One stave per part now that hymnal mode is gone, so which line the
+  // click landed on IS the part it targets — no separate part selector.
+  const partId = hit.box.partIds[0];
+  if (!partId) return;
+
   if (getMode() === "delete") {
     commit((score) => deleteEventAt(score, partId, hit.tick));
     return;

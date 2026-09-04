@@ -1,7 +1,17 @@
 import "./style.css";
-import { LAYOUTS_BY_KIND, createDemoScore } from "./demo-score.ts";
+import { createDemoScore } from "./demo-score.ts";
+import { deleteEventAt, insertNote } from "./edit/commands.ts";
+import { commit, getScore, initHistory, redo, undo } from "./edit/history.ts";
+import {
+  getActiveDurationTicks,
+  resolveAlter,
+  setAccidentalOverride,
+  setActiveDurationTicks,
+} from "./edit/tools.ts";
+import { fromDiatonic } from "./model/pitch.ts";
 import { waitForFonts } from "./platform/fonts.ts";
 import { attachGhostNote } from "./render/cursor.ts";
+import { hitTest } from "./render/hit-test.ts";
 import type { LayoutIndex } from "./render/layout-index.ts";
 import { renderScore } from "./render/renderer.ts";
 import { createControlPanel } from "./ui/control-panel.ts";
@@ -14,26 +24,63 @@ if (!ready) {
   console.warn(`Fonts not ready before first render: ${missing.join(", ")}`);
 }
 
-const score = createDemoScore();
 const container = document.querySelector<HTMLDivElement>("#score")!;
 const controlsMount = document.querySelector<HTMLDivElement>("#controls")!;
-const { layoutToggle } = createControlPanel(controlsMount);
 
 let layoutIndex: LayoutIndex = { staves: [] };
-function rerender() {
-  layoutIndex = renderScore(container, score);
+function rerender(): void {
+  layoutIndex = renderScore(container, getScore());
 }
 
-layoutToggle.addEventListener("click", () => {
-  score.layout =
-    score.layout.kind === "grandStaff"
-      ? LAYOUTS_BY_KIND.openScore
-      : LAYOUTS_BY_KIND.grandStaff;
-  rerender();
+initHistory(createDemoScore(), rerender);
+
+createControlPanel(controlsMount, {
+  onDurationChange: setActiveDurationTicks,
+  onAccidentalChange: setAccidentalOverride,
+  onUndo: undo,
+  onRedo: redo,
 });
 
-rerender();
+// Returns null if the click missed both the SVG and any hit-testable note
+// slot — callers bail out in that case.
+function hitFromMouseEvent(
+  event: MouseEvent,
+): { partId: string; tick: number; diatonic: number } | null {
+  const svg = container.querySelector("svg");
+  if (!svg) return null;
+  const rect = svg.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const hit = hitTest(x, y, layoutIndex, getActiveDurationTicks());
+  if (!hit) return null;
 
-// Stage 2 predates the duration palette, so the grid is hardcoded to a
-// quarter note until edit/tools.ts exists (Stage 3).
-attachGhostNote(container, () => layoutIndex, score.divisions);
+  // One stave per part now that hymnal mode is gone, so which line the
+  // click landed on IS the part it targets — no separate part selector.
+  const partId = hit.box.partIds[0];
+  if (!partId) return null;
+  return { partId, tick: hit.tick, diatonic: hit.diatonic };
+}
+
+// Left click inserts, right click deletes — no separate mode toggle.
+container.addEventListener("click", (event) => {
+  const hit = hitFromMouseEvent(event);
+  if (!hit) return;
+
+  const { step, octave } = fromDiatonic(hit.diatonic);
+  commit((score) => {
+    const alter = resolveAlter(score, hit.tick, step);
+    insertNote(score, hit.partId, hit.tick, getActiveDurationTicks(), [
+      { step, octave, alter },
+    ]);
+  });
+});
+
+container.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  const hit = hitFromMouseEvent(event);
+  if (!hit) return;
+
+  commit((score) => deleteEventAt(score, hit.partId, hit.tick));
+});
+
+attachGhostNote(container, () => layoutIndex, getActiveDurationTicks);

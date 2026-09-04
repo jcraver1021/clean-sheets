@@ -1,6 +1,7 @@
 import { Stem } from "vexflow";
 import { describe, expect, it } from "vitest";
 import {
+  decomposeDurationTicks,
   stemFor,
   toVexDuration,
   toVexKey,
@@ -40,6 +41,26 @@ describe("toVexDuration", () => {
     expect(() => toVexDuration(640, DIVISIONS)).toThrow(
       /no exact VexFlow duration/,
     );
+  });
+});
+
+describe("decomposeDurationTicks", () => {
+  const DIVISIONS = 960;
+
+  it("uses a single piece when the gap is already a standard duration", () => {
+    expect(decomposeDurationTicks(1920, DIVISIONS)).toEqual([1920]); // half
+  });
+
+  it("greedily picks the fewest, largest pieces for a non-standard gap", () => {
+    // 2400 ticks: no single duration matches, so half (1920) + eighth (480).
+    expect(decomposeDurationTicks(2400, DIVISIONS)).toEqual([1920, 480]);
+  });
+
+  it("repeats a size when the gap needs more than one of the largest piece", () => {
+    expect(decomposeDurationTicks(DIVISIONS * 8, DIVISIONS)).toEqual([
+      DIVISIONS * 4,
+      DIVISIONS * 4,
+    ]);
   });
 });
 

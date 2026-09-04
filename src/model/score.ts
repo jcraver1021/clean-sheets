@@ -91,11 +91,11 @@ export type TempoPoint = { tick: number; bpm: number };
 export type StaveAssignment = { clef: Clef; partIds: string[] };
 
 /**
- * How parts map to staves: `grandStaff` = hymnal two-stave,
- * `openScore` = one stave per part.
+ * How parts map to staves — currently always one stave per part. A hymnal
+ * shared-staff layout may return later; that's where a `kind` discriminant
+ * would go again.
  */
 export type LayoutPolicy = {
-  kind: "grandStaff" | "openScore";
   staves: StaveAssignment[];
 };
 
@@ -108,8 +108,7 @@ export type LyricDisplay =
 
 /**
  * The score document model. Parts are independent of staves; `LayoutPolicy`
- * projects them onto an arrangement, so hymnal/open-score is a one-field
- * switch.
+ * is what projects them onto an arrangement.
  */
 export type Score = {
   schemaVersion: 1; // Bumped when this shape changes, for migrating saved files on load.

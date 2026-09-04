@@ -54,7 +54,7 @@ const score: Score = {
     },
   ],
   tempoMap: [{ tick: 0, bpm: 96 }],
-  layout: { kind: "openScore", staves: [{ clef: "treble", partIds: ["P"] }] },
+  layout: { staves: [{ clef: "treble", partIds: ["P"] }] },
   lyricDisplay: { kind: "perPart" },
 };
 

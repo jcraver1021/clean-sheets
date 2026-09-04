@@ -52,16 +52,16 @@ function createGhostNoteElement(): SVGEllipseElement {
 
 /**
  * Wires a hover ghost-note preview onto `container`'s rendered SVG: on
- * mousemove, snaps to `gridTicks` via `hitTest` and positions a semi-
+ * mousemove, snaps to the current grid via `hitTest` and positions a semi-
  * transparent notehead there; hides it when the cursor isn't over a stave.
- * `getLayoutIndex` is called per move rather than captured once, so this
- * keeps working across re-renders (layout toggle, future edits) without
- * needing to be re-attached. Returns a cleanup function.
+ * `getLayoutIndex`/`getGridTicks` are called per move rather than captured
+ * once, so this keeps working across re-renders and duration-palette changes
+ * without needing to be re-attached. Returns a cleanup function.
  */
 export function attachGhostNote(
   container: HTMLElement,
   getLayoutIndex: () => LayoutIndex,
-  gridTicks: number,
+  getGridTicks: () => number,
 ): () => void {
   const ghost = createGhostNoteElement();
 
@@ -77,7 +77,12 @@ export function attachGhostNote(
     const rect = svg.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const position = computeGhostPosition(x, y, getLayoutIndex(), gridTicks);
+    const position = computeGhostPosition(
+      x,
+      y,
+      getLayoutIndex(),
+      getGridTicks(),
+    );
     if (!position) {
       ghost.style.display = "none";
       return;

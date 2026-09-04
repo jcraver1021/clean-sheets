@@ -18,27 +18,13 @@ function part(id: string, name: string, sounding: Pitch[]): Part {
   };
 }
 
-const GRAND_STAFF_LAYOUT: LayoutPolicy = {
-  kind: "grandStaff",
-  staves: [
-    { clef: "treble", partIds: ["S", "A"] },
-    { clef: "bass", partIds: ["T", "B"] },
-  ],
-};
-
 const OPEN_SCORE_LAYOUT: LayoutPolicy = {
-  kind: "openScore",
   staves: [
     { clef: "treble", partIds: ["S"] },
     { clef: "treble", partIds: ["A"] },
     { clef: "treble8vb", partIds: ["T"] },
     { clef: "bass", partIds: ["B"] },
   ],
-};
-
-export const LAYOUTS_BY_KIND: Record<LayoutPolicy["kind"], LayoutPolicy> = {
-  grandStaff: GRAND_STAFF_LAYOUT,
-  openScore: OPEN_SCORE_LAYOUT,
 };
 
 /**
@@ -91,7 +77,7 @@ export function createDemoScore(): Score {
       },
     ],
     tempoMap: [{ tick: 0, bpm: 96 }],
-    layout: GRAND_STAFF_LAYOUT,
+    layout: OPEN_SCORE_LAYOUT,
     lyricDisplay: { kind: "shared", sourcePartId: "S" },
   };
 }

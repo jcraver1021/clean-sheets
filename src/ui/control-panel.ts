@@ -32,7 +32,10 @@ const ACCIDENTALS: Array<{ label: string; override: AccidentalOverride }> = [
 ];
 const DEFAULT_ACCIDENTAL_INDEX = 0; // Auto, matching edit/tools.ts's default.
 
-/** A mutually-exclusive row of buttons; only one carries the "active" class at a time. */
+/**
+ * A mutually-exclusive row of buttons; only one carries the "active"
+ * class at a time.
+ */
 function createButtonGroup<T>(
   mountPoint: HTMLElement,
   items: Array<{ label: string; value: T }>,

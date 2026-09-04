@@ -47,7 +47,9 @@ export function insertNote(
   part.events.sort((a, b) => a.tick - b.tick);
 }
 
-/** Removes whichever event in `partId` covers `tick`, if any. */
+/**
+ * Removes whichever event in `partId` covers `tick`, if any.
+ */
 export function deleteEventAt(
   score: Score,
   partId: string,
@@ -77,7 +79,10 @@ export function setDuration(
   event.durationTicks = durationTicks;
 }
 
-/** Sets the accidental on one pitch (the first, in a single-pitch event) of an existing event. */
+/**
+ * Sets the accidental on one pitch (the first, in a single-pitch event) of
+ * an existing event.
+ */
 export function setAccidental(
   score: Score,
   partId: string,

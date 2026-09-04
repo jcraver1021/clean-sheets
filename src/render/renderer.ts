@@ -31,15 +31,12 @@ import {
   toVexKeySignature,
 } from "./vex-adapt.ts";
 
-// Model stores sounding pitch (score.ts). treble8vb is written a diatonic 7th
-// above sounding — this is one of two places applying that shift; hit-test.ts
-// (Stage 2) applies it in reverse.
+// Model stores sounding pitch; treble8vb is written a diatonic 7th above
+// sounding. hit-test.ts applies the shift in reverse.
 const TREBLE_8VB_WRITTEN_SHIFT = 7;
 
-// Wide enough that a sixteenth-note slot (a beat's worth of width / 4) stays
-// comfortably clickable even after formatToStave redistributes space around
-// whatever's actually in the measure — a fixed 220px left slots as narrow as
-// ~9px, well under reliable mouse precision.
+// Wide enough that a sixteenth-note slot stays clickable after formatToStave
+// redistributes space — a fixed 220px left slots as narrow as ~9px.
 const MEASURE_WIDTH = 500;
 const STAVE_ROW_HEIGHT = 110;
 const SYSTEM_LEFT_MARGIN = 10;
@@ -84,11 +81,10 @@ function buildStaveNote(
 type PartVoice = { voice: Voice; events: NoteEvent[]; notes: StaveNote[] };
 
 /**
- * Fills every silent stretch between `startTick` and `endTick` that `events`
- * doesn't cover with explicit rests. VexFlow's per-voice tick accounting
- * only knows the tickables it's handed, not our model's absolute ticks — a
- * silent gap (e.g. a deleted note) must become rests, or everything after it
- * in that voice drifts out of alignment with the rest of the stave.
+ * Fills every silent stretch between `startTick` and `endTick` that
+ * `events` doesn't cover with explicit rests. VexFlow's per-voice tick
+ * accounting only knows the tickables it's handed — a silent gap must
+ * become rests, or later notes in that voice drift out of alignment.
  */
 function fillGapsWithRests(
   events: NoteEvent[],
@@ -147,94 +143,106 @@ function buildVoiceForPart(
   return { voice, events, notes };
 }
 
-// Everything a stave row contributes to the layout index except y0/y1: those
-// need every row's topLineY first, so renderScore fills them in afterward.
-type PartialStaveBox = Omit<StaveBox, "y0" | "y1">;
+/**
+ * One row's fixed setup — everything `drawMeasureColumn` needs about a
+ * row besides which measure it's drawing.
+ */
+export type RowSetup = {
+  assignment: StaveAssignment;
+  vexClef: string;
+  writtenShift: number;
+  y: number;
+};
 
-// Exported for testability: exercised directly with a fake RenderContext in
-// renderer.test.ts, without needing a browser or jsdom.
-export function drawStaveRow(
+// One row's contribution to a single measure column.
+type RowMeasureResult = { stave: Stave; noteAnchors: NoteAnchor[] };
+
+/**
+ * Draws one measure column across every row and returns each row's stave
+ * and note positions. All rows' voices are joined into a single
+ * `Formatter` pass — not formatted per row — so a note at a given tick
+ * lands at the same x on every row, regardless of that row's own rhythm.
+ * `formatBegModifiers` does the same for clef/time-signature widths, which
+ * otherwise differ slightly by clef.
+ *
+ * Exported for testability (see renderer.test.ts): runs against a fake
+ * RenderContext, no browser or jsdom needed.
+ */
+export function drawMeasureColumn(
   ctx: RenderContext,
   score: Score,
-  assignment: StaveAssignment,
-  rowIndex: number,
-): PartialStaveBox {
-  const vexClef = toVexClefName(assignment.clef);
-  const writtenShift =
-    assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0;
-  const y = SYSTEM_TOP_MARGIN + rowIndex * STAVE_ROW_HEIGHT;
-  const measures: MeasureBox[] = [];
-  let topLineY = 0;
-  let lineSpacing = 0;
+  rows: RowSetup[],
+  measureIndex: number,
+): RowMeasureResult[] {
+  const measure = score.measures[measureIndex];
+  if (!measure) throw new Error(`No measure at index ${measureIndex}`);
+  const x = SYSTEM_LEFT_MARGIN + measureIndex * MEASURE_WIDTH;
 
-  for (
-    let measureIndex = 0;
-    measureIndex < score.measures.length;
-    measureIndex++
-  ) {
-    const measure = score.measures[measureIndex];
-    if (!measure) throw new Error(`No measure at index ${measureIndex}`);
-    const x = SYSTEM_LEFT_MARGIN + measureIndex * MEASURE_WIDTH;
-    const stave = new Stave(x, y, MEASURE_WIDTH);
+  const staves = rows.map((row) => {
+    const stave = new Stave(x, row.y, MEASURE_WIDTH);
     if (measureIndex === 0) {
       stave.addClef(
-        vexClef,
+        row.vexClef,
         "default",
-        assignment.clef === "treble8vb" ? "8vb" : undefined,
+        row.assignment.clef === "treble8vb" ? "8vb" : undefined,
       );
       stave.addTimeSignature(
         `${measure.timeSig.beats}/${measure.timeSig.beatType}`,
       );
     }
-    stave.setContext(ctx).draw();
-    topLineY = stave.getYForLine(0);
-    lineSpacing = stave.getSpacingBetweenLines();
+    return stave;
+  });
+  Stave.formatBegModifiers(staves);
+  staves.forEach((stave) => stave.setContext(ctx).draw());
 
-    const partVoices = assignment.partIds.map((partId, indexInStave) =>
+  const rowVoices = rows.map((row) =>
+    row.assignment.partIds.map((partId, indexInStave) =>
       buildVoiceForPart(
         score,
         partId,
         measureIndex,
-        vexClef,
-        writtenShift,
-        stemFor(assignment.partIds.length, indexInStave),
+        row.vexClef,
+        row.writtenShift,
+        stemFor(row.assignment.partIds.length, indexInStave),
       ),
-    );
-    const voices = partVoices.map((partVoice) => partVoice.voice);
-
+    ),
+  );
+  rowVoices.forEach((partVoices) =>
     Accidental.applyAccidentals(
-      voices,
+      partVoices.map((partVoice) => partVoice.voice),
       toVexKeySignature(keyAt(score, measure.startTick)),
-    );
-    // formatToStave (not a fixed width) accounts for the clef/time signature
-    // already eating into measure 0's stave — a fixed width overflows past
-    // the barline on exactly the measures that carry those modifiers.
-    new Formatter().joinVoices(voices).formatToStave(voices, stave);
+    ),
+  );
 
-    // Beams must exist before the notes are drawn: StaveNote.hasFlag() is
-    // false once a note has a beam attached, but that only suppresses the
-    // flag glyph if it's set before draw() runs — attaching the beam
-    // afterward doesn't retroactively undraw an already-rendered flag.
-    // maintainStemDirections: true keeps our SATB stem convention (stemFor)
-    // instead of letting generateBeams reassign stems by pitch.
-    const beamGroups = Beam.getDefaultBeamGroups(
-      `${measure.timeSig.beats}/${measure.timeSig.beatType}`,
-    );
+  // formatToStave (not a fixed width) accounts for the clef/time signature
+  // eating into measure 0's stave. Which row's stave is passed no longer
+  // matters — formatBegModifiers already equalized every row's noteStartX.
+  const allVoices = rowVoices.flat().map((partVoice) => partVoice.voice);
+  new Formatter().joinVoices(allVoices).formatToStave(allVoices, staves[0]!);
+
+  const beamGroups = Beam.getDefaultBeamGroups(
+    `${measure.timeSig.beats}/${measure.timeSig.beatType}`,
+  );
+
+  return staves.map((stave, rowIndex) => {
+    const partVoices = rowVoices[rowIndex]!;
+
+    // Beams must exist before draw(): StaveNote.hasFlag() only suppresses
+    // the flag glyph if the beam is attached before drawing, not after.
+    // maintainStemDirections keeps our stemFor convention instead of
+    // letting generateBeams reassign stems by pitch.
     const beams = partVoices.flatMap((partVoice) =>
       Beam.generateBeams(partVoice.notes, {
         maintainStemDirections: true,
         groups: beamGroups,
       }),
     );
-
-    voices.forEach((voice) => voice.draw(ctx, stave));
+    partVoices.forEach((partVoice) => partVoice.voice.draw(ctx, stave));
     beams.forEach((beam) => beam.setContext(ctx).draw());
 
-    // Real positions, not an equal split of MEASURE_WIDTH — VexFlow spaces
-    // notes non-uniformly, so hit-test.ts interpolates between these
-    // (falling back to noteStartX/noteEndX only outside their range).
-    // Simultaneous notes across voices land on the same x (joinVoices), so
-    // later voices simply overwrite earlier ones for a given tick.
+    // Real positions, not an equal split of MEASURE_WIDTH — hit-test.ts
+    // interpolates between these. Simultaneous notes across voices share a
+    // tick, so later voices simply overwrite earlier ones here.
     const anchorsByTick = new Map<number, number>();
     for (const partVoice of partVoices) {
       partVoice.events.forEach((event, i) =>
@@ -245,28 +253,13 @@ export function drawStaveRow(
       .map(([tick, x]) => ({ tick, x }))
       .sort((a, b) => a.tick - b.tick);
 
-    measures.push({
-      index: measureIndex,
-      x0: stave.getNoteStartX(),
-      x1: stave.getNoteEndX(),
-      startTick: measure.startTick,
-      endTick: measureEndTick(score, measure),
-      noteAnchors,
-    });
-  }
-
-  return {
-    systemIndex: 0,
-    staveIndex: rowIndex,
-    clef: assignment.clef,
-    partIds: assignment.partIds,
-    x0: SYSTEM_LEFT_MARGIN,
-    x1: SYSTEM_LEFT_MARGIN + score.measures.length * MEASURE_WIDTH,
-    topLineY,
-    lineSpacing,
-    measures,
-  };
+    return { stave, noteAnchors };
+  });
 }
+
+// Everything a stave row contributes to the layout index except y0/y1: those
+// need every row's topLineY first, so renderScore fills them in afterward.
+type PartialStaveBox = Omit<StaveBox, "y0" | "y1">;
 
 /**
  * Draws `score` into `container` as SVG, one row per stave in the layout,
@@ -284,9 +277,51 @@ export function renderScore(
   );
   const ctx = renderer.getContext();
 
-  const partialBoxes = score.layout.staves.map((assignment, rowIndex) =>
-    drawStaveRow(ctx, score, assignment, rowIndex),
-  );
+  const rows: RowSetup[] = score.layout.staves.map((assignment, rowIndex) => ({
+    assignment,
+    vexClef: toVexClefName(assignment.clef),
+    writtenShift:
+      assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0,
+    y: SYSTEM_TOP_MARGIN + rowIndex * STAVE_ROW_HEIGHT,
+  }));
+
+  const measuresByRow: MeasureBox[][] = rows.map(() => []);
+  const topLineYByRow: number[] = [];
+  const lineSpacingByRow: number[] = [];
+
+  for (
+    let measureIndex = 0;
+    measureIndex < score.measures.length;
+    measureIndex++
+  ) {
+    const measure = score.measures[measureIndex];
+    if (!measure) throw new Error(`No measure at index ${measureIndex}`);
+    const results = drawMeasureColumn(ctx, score, rows, measureIndex);
+    results.forEach(({ stave, noteAnchors }, rowIndex) => {
+      topLineYByRow[rowIndex] = stave.getYForLine(0);
+      lineSpacingByRow[rowIndex] = stave.getSpacingBetweenLines();
+      measuresByRow[rowIndex]!.push({
+        index: measureIndex,
+        x0: stave.getNoteStartX(),
+        x1: stave.getNoteEndX(),
+        startTick: measure.startTick,
+        endTick: measureEndTick(score, measure),
+        noteAnchors,
+      });
+    });
+  }
+
+  const partialBoxes: PartialStaveBox[] = rows.map((row, rowIndex) => ({
+    systemIndex: 0,
+    staveIndex: rowIndex,
+    clef: row.assignment.clef,
+    partIds: row.assignment.partIds,
+    x0: SYSTEM_LEFT_MARGIN,
+    x1: SYSTEM_LEFT_MARGIN + score.measures.length * MEASURE_WIDTH,
+    topLineY: topLineYByRow[rowIndex]!,
+    lineSpacing: lineSpacingByRow[rowIndex]!,
+    measures: measuresByRow[rowIndex]!,
+  }));
   const claimRegions = computeClaimRegions(
     partialBoxes.map((box) => box.topLineY),
   );

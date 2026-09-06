@@ -1,7 +1,16 @@
 import "./style.css";
+import { audition } from "./audio/audition.ts";
+import { initVoices, setMuted, setSolo } from "./audio/engine.ts";
 import { createDemoScore } from "./demo-score.ts";
 import { deleteEventAt, insertNote } from "./edit/commands.ts";
-import { commit, getScore, initHistory, redo, undo } from "./edit/history.ts";
+import {
+  commit,
+  getRevision,
+  getScore,
+  initHistory,
+  redo,
+  undo,
+} from "./edit/history.ts";
 import {
   getActiveDurationTicks,
   resolveAlter,
@@ -33,13 +42,20 @@ function rerender(): void {
 }
 
 initHistory(createDemoScore(), rerender);
+initVoices(getScore().parts.map((part) => part.id));
 
-createControlPanel(controlsMount, {
-  onDurationChange: setActiveDurationTicks,
-  onAccidentalChange: setAccidentalOverride,
-  onUndo: undo,
-  onRedo: redo,
-});
+createControlPanel(
+  controlsMount,
+  getScore().parts.map((part) => ({ id: part.id, name: part.name })),
+  {
+    onDurationChange: setActiveDurationTicks,
+    onAccidentalChange: setAccidentalOverride,
+    onUndo: undo,
+    onRedo: redo,
+    onMuteToggle: setMuted,
+    onSoloToggle: setSolo,
+  },
+);
 
 // Returns null if the click missed both the SVG and any hit-testable note
 // slot — callers bail out in that case.
@@ -81,6 +97,23 @@ container.addEventListener("contextmenu", (event) => {
   if (!hit) return;
 
   commit((score) => deleteEventAt(score, hit.partId, hit.tick));
+});
+
+// Middle click auditions (Mode B) rather than editing: hear what's sounding
+// at that beat without touching the score. Shift rolls the chord bottom-up
+// (voice leading) instead of playing it as a block.
+container.addEventListener("mousedown", (event) => {
+  if (event.button !== 1) return;
+  event.preventDefault();
+  const hit = hitFromMouseEvent(event);
+  if (!hit) return;
+
+  void audition(
+    getScore(),
+    getRevision(),
+    hit.tick,
+    event.shiftKey ? "roll" : "block",
+  );
 });
 
 attachGhostNote(container, () => layoutIndex, getActiveDurationTicks);

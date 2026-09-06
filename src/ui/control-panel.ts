@@ -5,6 +5,8 @@ export type ControlPanelCallbacks = {
   onAccidentalChange: (override: AccidentalOverride) => void;
   onUndo: () => void;
   onRedo: () => void;
+  onMuteToggle: (partId: string, muted: boolean) => void;
+  onSoloToggle: (partId: string | null) => void;
 };
 
 export type ControlPanel = {
@@ -60,14 +62,57 @@ function createButtonGroup<T>(
 }
 
 /**
+ * One part's Mute/Solo row. Mute toggles independently per part; Solo is
+ * exclusive — soloing one part clears any other, and soloing the currently
+ * soloed part clears it back to none, matching `engine.ts`'s single
+ * `soloPartId`.
+ */
+function createMixerRow(
+  mountPoint: HTMLElement,
+  part: { id: string; name: string },
+  soloButtons: HTMLButtonElement[],
+  callbacks: Pick<ControlPanelCallbacks, "onMuteToggle" | "onSoloToggle">,
+): void {
+  const row = document.createElement("span");
+
+  const label = document.createElement("span");
+  label.textContent = part.name;
+  row.append(label);
+
+  const muteButton = document.createElement("button");
+  muteButton.type = "button";
+  muteButton.textContent = "Mute";
+  muteButton.addEventListener("click", () => {
+    callbacks.onMuteToggle(part.id, muteButton.classList.toggle("active"));
+  });
+  row.append(muteButton);
+
+  const soloButton = document.createElement("button");
+  soloButton.type = "button";
+  soloButton.textContent = "Solo";
+  soloButton.addEventListener("click", () => {
+    const willSolo = !soloButton.classList.contains("active");
+    soloButtons.forEach((sibling) => sibling.classList.remove("active"));
+    soloButton.classList.toggle("active", willSolo);
+    callbacks.onSoloToggle(willSolo ? part.id : null);
+  });
+  soloButtons.push(soloButton);
+  row.append(soloButton);
+
+  mountPoint.append(row);
+}
+
+/**
  * Builds the toolbar's controls into `mountPoint` and wires them straight to
  * `callbacks` — main.ts owns what each control does, this just presents them.
- * There's no part selector (which part an edit targets comes from which line
- * the mouse is on) and no insert/delete mode toggle (left click inserts,
- * right click deletes).
+ * There's no part selector for note entry (which part an edit targets comes
+ * from which line the mouse is on) and no insert/delete mode toggle (left
+ * click inserts, right click deletes) — but the mixer still needs the part
+ * list, since mute/solo apply per part regardless of which line is clicked.
  */
 export function createControlPanel(
   mountPoint: HTMLElement,
+  parts: Array<{ id: string; name: string }>,
   callbacks: ControlPanelCallbacks,
 ): ControlPanel {
   createButtonGroup(
@@ -94,6 +139,11 @@ export function createControlPanel(
   redoButton.textContent = "Redo";
   redoButton.addEventListener("click", callbacks.onRedo);
   mountPoint.append(redoButton);
+
+  const soloButtons: HTMLButtonElement[] = [];
+  parts.forEach((part) =>
+    createMixerRow(mountPoint, part, soloButtons, callbacks),
+  );
 
   return { undoButton, redoButton };
 }

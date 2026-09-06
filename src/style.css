@@ -7,3 +7,21 @@ body {
 #score svg {
   display: block;
 }
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+#controls span {
+  display: flex;
+  gap: 0.25rem;
+}
+
+#controls button.active {
+  background: #333;
+  color: white;
+}

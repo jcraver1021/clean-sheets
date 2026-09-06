@@ -4,7 +4,7 @@ import { GHOST_NOTE_RX, computeGhostPosition } from "./cursor.ts";
 import { tickToX } from "./hit-test.ts";
 import { computeClaimRegions } from "./layout-index.ts";
 import type { LayoutIndex, StaveBox } from "./layout-index.ts";
-import { drawStaveRow } from "./renderer.ts";
+import { drawMeasureColumn } from "./renderer.ts";
 import {
   fakeRenderContext,
   installFakeTextMeasurementCanvas,
@@ -72,14 +72,35 @@ describe("computeGhostPosition against a real rendered stave", () => {
 
   it("hovering exactly on a real note offsets from its real anchor by GHOST_NOTE_RX", () => {
     const score = createDemoScore();
-    const partial = drawStaveRow(
+    const assignment = score.layout.staves[0]!;
+    const [result] = drawMeasureColumn(
       fakeRenderContext(),
       score,
-      score.layout.staves[0]!,
+      [{ assignment, vexClef: assignment.clef, writtenShift: 0, y: 0 }],
       0,
     );
-    const [claimRegion] = computeClaimRegions([partial.topLineY]);
-    const staveBox: StaveBox = { ...partial, ...claimRegion! };
+    const [claimRegion] = computeClaimRegions([result!.stave.getYForLine(0)]);
+    const staveBox: StaveBox = {
+      systemIndex: 0,
+      staveIndex: 0,
+      clef: assignment.clef,
+      partIds: assignment.partIds,
+      x0: result!.stave.getNoteStartX(),
+      x1: result!.stave.getNoteEndX(),
+      topLineY: result!.stave.getYForLine(0),
+      lineSpacing: result!.stave.getSpacingBetweenLines(),
+      measures: [
+        {
+          index: 0,
+          x0: result!.stave.getNoteStartX(),
+          x1: result!.stave.getNoteEndX(),
+          startTick: score.measures[0]!.startTick,
+          endTick: score.measures[0]!.startTick + 4 * score.divisions,
+          noteAnchors: result!.noteAnchors,
+        },
+      ],
+      ...claimRegion!,
+    };
     const layoutIndex: LayoutIndex = { staves: [staveBox] };
 
     const anchor = staveBox.measures[0]!.noteAnchors[0]!;

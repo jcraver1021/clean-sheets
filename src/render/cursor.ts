@@ -37,6 +37,81 @@ export function computeGhostPosition(
   };
 }
 
+export type PlayheadSpan = { x: number; y0: number; y1: number };
+
+/**
+ * Pure positioning math for the playhead line at `tick`: null if the layout
+ * has no staves yet. Spans the whole system vertically, not just one stave
+ * — cross-row tick alignment (render/renderer.ts) means any stave's x for
+ * `tick` matches every other's, so the first stave is as good a reference
+ * as any.
+ */
+export function computePlayheadSpan(
+  tick: number,
+  layoutIndex: LayoutIndex,
+): PlayheadSpan | null {
+  const first = layoutIndex.staves[0];
+  const last = layoutIndex.staves[layoutIndex.staves.length - 1];
+  if (!first || !last) return null;
+  const x = tickToX(tick, first);
+  if (x === null) return null;
+  return { x, y0: first.topLineY, y1: last.topLineY + 4 * last.lineSpacing };
+}
+
+function createPlayheadElement(): SVGLineElement {
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("stroke", "rgba(200, 0, 0, 0.7)");
+  line.setAttribute("stroke-width", "1.5");
+  line.style.display = "none";
+  line.style.pointerEvents = "none";
+  return line;
+}
+
+/**
+ * Draws a vertical line at whatever tick `getDisplayTick` reports right
+ * now — the static cursor while stopped, the live position from
+ * `playback.playheadTick` while playing — refreshed every animation frame
+ * rather than from an audio callback, which would fire ahead of the
+ * audible time and at the wrong cadence. `null` hides the line (no cursor
+ * set yet). Returns a cleanup function.
+ */
+export function attachPlayhead(
+  container: HTMLElement,
+  getLayoutIndex: () => LayoutIndex,
+  getDisplayTick: () => number | null,
+): () => void {
+  const line = createPlayheadElement();
+
+  function draw(): void {
+    frame = requestAnimationFrame(draw);
+
+    const svg = container.querySelector("svg");
+    const tick = getDisplayTick();
+    if (!svg || tick === null) {
+      line.style.display = "none";
+      return;
+    }
+    const span = computePlayheadSpan(tick, getLayoutIndex());
+    if (!span) {
+      line.style.display = "none";
+      return;
+    }
+
+    if (line.parentNode !== svg) svg.append(line);
+    line.setAttribute("x1", String(span.x));
+    line.setAttribute("x2", String(span.x));
+    line.setAttribute("y1", String(span.y0));
+    line.setAttribute("y2", String(span.y1));
+    line.style.display = "";
+  }
+  let frame = requestAnimationFrame(draw);
+
+  return () => {
+    cancelAnimationFrame(frame);
+    line.remove();
+  };
+}
+
 function createGhostNoteElement(): SVGEllipseElement {
   const ghost = document.createElementNS(
     "http://www.w3.org/2000/svg",

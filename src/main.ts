@@ -1,6 +1,7 @@
 import "./style.css";
 import { audition } from "./audio/audition.ts";
 import { initVoices, setMuted, setSolo } from "./audio/engine.ts";
+import { isPlaying, playFrom, playheadTick, stop } from "./audio/playback.ts";
 import { createDemoScore } from "./demo-score.ts";
 import { deleteEventAt, insertNote } from "./edit/commands.ts";
 import {
@@ -13,13 +14,15 @@ import {
 } from "./edit/history.ts";
 import {
   getActiveDurationTicks,
+  getCursorTick,
   resolveAlter,
   setAccidentalOverride,
   setActiveDurationTicks,
+  setCursorTick,
 } from "./edit/tools.ts";
 import { fromDiatonic } from "./model/pitch.ts";
 import { waitForFonts } from "./platform/fonts.ts";
-import { attachGhostNote } from "./render/cursor.ts";
+import { attachGhostNote, attachPlayhead } from "./render/cursor.ts";
 import { hitTest } from "./render/hit-test.ts";
 import type { LayoutIndex } from "./render/layout-index.ts";
 import { renderScore } from "./render/renderer.ts";
@@ -54,6 +57,9 @@ createControlPanel(
     onRedo: redo,
     onMuteToggle: setMuted,
     onSoloToggle: setSolo,
+    onPlay: () =>
+      void playFrom(getScore(), getRevision(), getCursorTick() ?? 0),
+    onStop: stop,
   },
 );
 
@@ -78,9 +84,16 @@ function hitFromMouseEvent(
 }
 
 // Left click inserts, right click deletes — no separate mode toggle.
+// Alt+left click instead moves the playback cursor, without touching the
+// score.
 container.addEventListener("click", (event) => {
   const hit = hitFromMouseEvent(event);
   if (!hit) return;
+
+  if (event.altKey) {
+    setCursorTick(hit.tick);
+    return;
+  }
 
   const { step, octave } = fromDiatonic(hit.diatonic);
   commit((score) => {
@@ -117,3 +130,8 @@ container.addEventListener("mousedown", (event) => {
 });
 
 attachGhostNote(container, () => layoutIndex, getActiveDurationTicks);
+attachPlayhead(
+  container,
+  () => layoutIndex,
+  () => (isPlaying() ? playheadTick(getScore()) : getCursorTick()),
+);

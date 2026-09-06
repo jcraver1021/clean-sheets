@@ -7,6 +7,8 @@ export type ControlPanelCallbacks = {
   onRedo: () => void;
   onMuteToggle: (partId: string, muted: boolean) => void;
   onSoloToggle: (partId: string | null) => void;
+  onPlay: () => void;
+  onStop: () => void;
 };
 
 export type ControlPanel = {
@@ -127,6 +129,18 @@ export function createControlPanel(
     DEFAULT_ACCIDENTAL_INDEX,
     callbacks.onAccidentalChange,
   );
+
+  const playButton = document.createElement("button");
+  playButton.type = "button";
+  playButton.textContent = "Play";
+  playButton.addEventListener("click", callbacks.onPlay);
+  mountPoint.append(playButton);
+
+  const stopButton = document.createElement("button");
+  stopButton.type = "button";
+  stopButton.textContent = "Stop";
+  stopButton.addEventListener("click", callbacks.onStop);
+  mountPoint.append(stopButton);
 
   const undoButton = document.createElement("button");
   undoButton.type = "button";

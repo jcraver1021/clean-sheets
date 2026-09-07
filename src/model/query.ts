@@ -58,3 +58,19 @@ export function eventsForMeasure(
     (event) => event.tick >= measure.startTick && event.tick < endTick,
   );
 }
+
+/**
+ * Returns the event in `partId` covering `tick`, if any — half-open like
+ * `soundingAt` (audio/audition.ts).
+ */
+export function eventAt(
+  score: Score,
+  partId: string,
+  tick: number,
+): NoteEvent | undefined {
+  const part = score.parts.find((candidate) => candidate.id === partId);
+  if (!part) throw new Error(`No part with id ${partId}`);
+  return part.events.find(
+    (event) => event.tick <= tick && tick < event.tick + event.durationTicks,
+  );
+}

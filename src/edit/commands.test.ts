@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
+import type { Score } from "../model/score.ts";
 import {
   deleteEventAt,
+  deleteLyric,
   insertNote,
   setAccidental,
   setDuration,
+  setLyric,
 } from "./commands.ts";
-import type { Score } from "../model/score.ts";
 
 const QUARTER = 960;
 
@@ -123,5 +125,59 @@ describe("setAccidental", () => {
     expect(() => setAccidental(score, "P", "e0", 1)).toThrow(
       /has no pitch at index/,
     );
+  });
+});
+
+describe("setLyric", () => {
+  it("adds a lyric to an event with none yet", () => {
+    const score = scoreWithOneNote();
+    setLyric(score, "P", "e0", 1, "single", "Ho");
+    expect(score.parts[0]!.events[0]!.lyrics).toEqual([
+      { verse: 1, syllable: "single", text: "Ho" },
+    ]);
+  });
+
+  it("replaces an existing verse's entry rather than duplicating it", () => {
+    const score = scoreWithOneNote();
+    setLyric(score, "P", "e0", 1, "begin", "Ho");
+    setLyric(score, "P", "e0", 1, "single", "Hey");
+    expect(score.parts[0]!.events[0]!.lyrics).toEqual([
+      { verse: 1, syllable: "single", text: "Hey" },
+    ]);
+  });
+
+  it("keeps separate verses independent", () => {
+    const score = scoreWithOneNote();
+    setLyric(score, "P", "e0", 1, "single", "Ho");
+    setLyric(score, "P", "e0", 2, "single", "Yo");
+    expect(score.parts[0]!.events[0]!.lyrics).toEqual([
+      { verse: 1, syllable: "single", text: "Ho" },
+      { verse: 2, syllable: "single", text: "Yo" },
+    ]);
+  });
+
+  it("accepts empty text, for marking a melisma's held notes", () => {
+    const score = scoreWithOneNote();
+    setLyric(score, "P", "e0", 1, "middle", "");
+    expect(score.parts[0]!.events[0]!.lyrics).toEqual([
+      { verse: 1, syllable: "middle", text: "" },
+    ]);
+  });
+});
+
+describe("deleteLyric", () => {
+  it("removes only the given verse's entry", () => {
+    const score = scoreWithOneNote();
+    setLyric(score, "P", "e0", 1, "single", "Ho");
+    setLyric(score, "P", "e0", 2, "single", "Yo");
+    deleteLyric(score, "P", "e0", 1);
+    expect(score.parts[0]!.events[0]!.lyrics).toEqual([
+      { verse: 2, syllable: "single", text: "Yo" },
+    ]);
+  });
+
+  it("does nothing when the event has no lyrics at all", () => {
+    const score = scoreWithOneNote();
+    expect(() => deleteLyric(score, "P", "e0", 1)).not.toThrow();
   });
 });

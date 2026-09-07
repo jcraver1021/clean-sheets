@@ -1,4 +1,10 @@
-import type { NoteEvent, Part, Pitch, Score } from "../model/score.ts";
+import type {
+  NoteEvent,
+  Part,
+  Pitch,
+  Score,
+  Syllable,
+} from "../model/score.ts";
 
 function partOrThrow(score: Score, partId: string): Part {
   const part = score.parts.find((candidate) => candidate.id === partId);
@@ -96,4 +102,45 @@ export function setAccidental(
   if (!pitch)
     throw new Error(`Event ${eventId} has no pitch at index ${pitchIndex}`);
   pitch.alter = alter;
+}
+
+/**
+ * Sets (or replaces) `verse`'s syllable on an event. `text` may be empty —
+ * that's how a melisma's held notes mark themselves as continuing the
+ * previous syllable rather than starting a new one (model/lyrics.ts).
+ */
+export function setLyric(
+  score: Score,
+  partId: string,
+  eventId: string,
+  verse: number,
+  syllable: Syllable,
+  text: string,
+): void {
+  const part = partOrThrow(score, partId);
+  const event = eventOrThrow(part, eventId);
+  const lyrics = (event.lyrics ??= []);
+  const existing = lyrics.find((lyric) => lyric.verse === verse);
+  if (existing) {
+    existing.syllable = syllable;
+    existing.text = text;
+  } else {
+    lyrics.push({ verse, syllable, text });
+  }
+}
+
+/**
+ * Removes `verse`'s entry entirely — unlike an empty `setLyric`, this
+ * breaks a melisma run rather than continuing it.
+ */
+export function deleteLyric(
+  score: Score,
+  partId: string,
+  eventId: string,
+  verse: number,
+): void {
+  const part = partOrThrow(score, partId);
+  const event = eventOrThrow(part, eventId);
+  if (!event.lyrics) return;
+  event.lyrics = event.lyrics.filter((lyric) => lyric.verse !== verse);
 }

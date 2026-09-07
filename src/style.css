@@ -4,8 +4,24 @@ body {
   font-family: system-ui, sans-serif;
 }
 
+#score {
+  position: relative;
+}
+
 #score svg {
   display: block;
+}
+
+.lyric-editor {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lyric-highlight {
+  fill: #c00;
+  font-weight: bold;
 }
 
 #controls {

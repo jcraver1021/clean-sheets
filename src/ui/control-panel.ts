@@ -9,6 +9,7 @@ export type ControlPanelCallbacks = {
   onSoloToggle: (partId: string | null) => void;
   onPlay: () => void;
   onStop: () => void;
+  onVerseChange: (verse: number) => void;
 };
 
 export type ControlPanel = {
@@ -129,6 +130,19 @@ export function createControlPanel(
     DEFAULT_ACCIDENTAL_INDEX,
     callbacks.onAccidentalChange,
   );
+
+  const verseLabel = document.createElement("label");
+  verseLabel.textContent = "Verse";
+  const verseInput = document.createElement("input");
+  verseInput.type = "number";
+  verseInput.min = "1";
+  verseInput.value = "1";
+  verseInput.size = 2;
+  verseInput.addEventListener("change", () => {
+    callbacks.onVerseChange(Math.max(1, Number(verseInput.value) || 1));
+  });
+  verseLabel.append(verseInput);
+  mountPoint.append(verseLabel);
 
   const playButton = document.createElement("button");
   playButton.type = "button";

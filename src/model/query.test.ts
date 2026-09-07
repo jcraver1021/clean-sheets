@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  eventAt,
   eventsForMeasure,
   keyAt,
   measureAt,
@@ -112,5 +113,19 @@ describe("eventsForMeasure", () => {
       /No measure at index/,
     );
     expect(() => eventsForMeasure(score, "NOPE", 0)).toThrow(/No part with id/);
+  });
+});
+
+describe("eventAt", () => {
+  it("finds the event covering a tick, including right at its start", () => {
+    expect(eventAt(score, "P", 3840)?.tick).toBe(3840);
+  });
+
+  it("returns undefined where no event covers that tick", () => {
+    expect(eventAt(score, "P", 1)).toBeUndefined();
+  });
+
+  it("throws for an unknown part id", () => {
+    expect(() => eventAt(score, "NOPE", 0)).toThrow(/No part with id/);
   });
 });

@@ -24,6 +24,12 @@ import type {
   StaveBox,
 } from "./layout-index.ts";
 import {
+  LYRIC_LINE_HEIGHT,
+  drawLyrics,
+  lyricLinesForRow,
+  sharedLyricLineCount,
+} from "./lyrics.ts";
+import {
   decomposeDurationTicks,
   stemFor,
   toVexDuration,
@@ -271,19 +277,33 @@ export function renderScore(
 ): LayoutIndex {
   container.replaceChildren();
   const renderer = new Renderer(container, Renderer.Backends.SVG);
+
+  // Row spacing isn't uniform once lyrics are involved: each row reserves
+  // extra height below its stave for its own verses (perPart), and the
+  // system as a whole reserves a trailing block for the shared display.
+  const rows: RowSetup[] = [];
+  let y = SYSTEM_TOP_MARGIN;
+  for (const assignment of score.layout.staves) {
+    rows.push({
+      assignment,
+      vexClef: toVexClefName(assignment.clef),
+      writtenShift:
+        assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0,
+      y,
+    });
+    y +=
+      STAVE_ROW_HEIGHT +
+      lyricLinesForRow(score, assignment.partIds[0]) * LYRIC_LINE_HEIGHT;
+  }
+  const systemLyricsY = y;
+  const totalHeight =
+    systemLyricsY + sharedLyricLineCount(score) * LYRIC_LINE_HEIGHT;
+
   renderer.resize(
     SYSTEM_LEFT_MARGIN * 2 + score.measures.length * MEASURE_WIDTH,
-    SYSTEM_TOP_MARGIN + score.layout.staves.length * STAVE_ROW_HEIGHT,
+    totalHeight,
   );
   const ctx = renderer.getContext();
-
-  const rows: RowSetup[] = score.layout.staves.map((assignment, rowIndex) => ({
-    assignment,
-    vexClef: toVexClefName(assignment.clef),
-    writtenShift:
-      assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0,
-    y: SYSTEM_TOP_MARGIN + rowIndex * STAVE_ROW_HEIGHT,
-  }));
 
   const measuresByRow: MeasureBox[][] = rows.map(() => []);
   const topLineYByRow: number[] = [];
@@ -310,6 +330,15 @@ export function renderScore(
       });
     });
   }
+
+  drawLyrics(
+    container,
+    score,
+    rows,
+    measuresByRow,
+    STAVE_ROW_HEIGHT,
+    systemLyricsY,
+  );
 
   const partialBoxes: PartialStaveBox[] = rows.map((row, rowIndex) => ({
     systemIndex: 0,

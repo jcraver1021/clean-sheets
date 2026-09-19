@@ -4,7 +4,11 @@ import { GHOST_NOTE_RX, computeGhostPosition } from "./cursor.ts";
 import { tickToX } from "./hit-test.ts";
 import { computeClaimRegions } from "./layout-index.ts";
 import type { LayoutIndex, StaveBox } from "./layout-index.ts";
-import { drawMeasureColumn } from "./renderer.ts";
+import {
+  MEASURE_WIDTH,
+  SYSTEM_LEFT_MARGIN,
+  drawMeasureColumn,
+} from "./renderer.ts";
 import {
   fakeRenderContext,
   installFakeTextMeasurementCanvas,
@@ -78,6 +82,9 @@ describe("computeGhostPosition against a real rendered stave", () => {
       score,
       [{ assignment, vexClef: assignment.clef, writtenShift: 0, y: 0 }],
       0,
+      SYSTEM_LEFT_MARGIN,
+      MEASURE_WIDTH,
+      true,
     );
     const [claimRegion] = computeClaimRegions([result!.stave.getYForLine(0)]);
     const staveBox: StaveBox = {

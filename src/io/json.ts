@@ -1,4 +1,5 @@
 import type { Score } from "../model/score.ts";
+import { triggerDownload } from "./download.ts";
 
 const LOCAL_STORAGE_KEY = "clean-sheets:score";
 
@@ -56,20 +57,13 @@ export function loadFromLocalStorage(
 }
 
 /**
- * Downloads `score` as a `.json` file via a throwaway object URL and
- * anchor click — the same Blob-download technique the MusicXML/PDF
- * exports (Stage 8) will reuse.
+ * Downloads `score` as a `.json` file.
  */
 export function downloadScore(score: Score): void {
-  const blob = new Blob([scoreToJson(score)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${score.title || "score"}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+  triggerDownload(
+    new Blob([scoreToJson(score)], { type: "application/json" }),
+    `${score.title || "score"}.json`,
+  );
 }
 
 /**

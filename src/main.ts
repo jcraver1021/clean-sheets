@@ -1,3 +1,4 @@
+import "./io/print.css";
 import "./style.css";
 import { audition } from "./audio/audition.ts";
 import { initVoices, setMuted, setSolo } from "./audio/engine.ts";
@@ -33,6 +34,7 @@ import {
   pickScoreFile,
   saveToLocalStorage,
 } from "./io/json.ts";
+import { downloadMusicXml } from "./io/musicxml-export.ts";
 import { fromDiatonic } from "./model/pitch.ts";
 import { eventAt } from "./model/query.ts";
 import type { Score } from "./model/score.ts";
@@ -41,6 +43,7 @@ import { attachGhostNote, attachPlayhead } from "./render/cursor.ts";
 import { hitTest } from "./render/hit-test.ts";
 import type { LayoutIndex } from "./render/layout-index.ts";
 import { attachLyricHighlight } from "./render/lyrics.ts";
+import { renderPrintPages } from "./render/print-pages.ts";
 import { renderScore } from "./render/renderer.ts";
 import { createControlPanel } from "./ui/control-panel.ts";
 import { openLyricEditor } from "./ui/lyric-editor.ts";
@@ -55,6 +58,7 @@ if (!ready) {
 
 const container = document.querySelector<HTMLDivElement>("#score")!;
 const controlsMount = document.querySelector<HTMLDivElement>("#controls")!;
+const printMount = document.querySelector<HTMLDivElement>("#print-pages")!;
 
 let layoutIndex: LayoutIndex = { staves: [] };
 function rerender(): void {
@@ -86,6 +90,11 @@ function mountScore(score: Score): void {
       onVerseChange: setActiveVerse,
       onSave: () => downloadScore(getScore()),
       onOpen: () => pickScoreFile(mountScore),
+      onExportMusicXml: () => downloadMusicXml(getScore()),
+      onPrint: () => {
+        renderPrintPages(printMount, getScore());
+        window.print();
+      },
     },
   );
 }

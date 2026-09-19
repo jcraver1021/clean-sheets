@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createDemoScore } from "../demo-score.ts";
 import type { Score } from "../model/score.ts";
-import { drawMeasureColumn } from "./renderer.ts";
+import {
+  MEASURE_WIDTH,
+  SYSTEM_LEFT_MARGIN,
+  drawMeasureColumn,
+} from "./renderer.ts";
 import type { RowSetup } from "./renderer.ts";
 import {
   fakeRenderContext,
@@ -75,6 +79,9 @@ describe("drawMeasureColumn", () => {
       score,
       rowsFor(score),
       0,
+      SYSTEM_LEFT_MARGIN,
+      MEASURE_WIDTH,
+      true,
     );
 
     for (const anchor of result!.noteAnchors) {
@@ -90,6 +97,9 @@ describe("drawMeasureColumn", () => {
       score,
       rowsFor(score),
       0,
+      SYSTEM_LEFT_MARGIN,
+      MEASURE_WIDTH,
+      true,
     );
 
     const eighthsByTick = new Map(

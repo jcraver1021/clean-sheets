@@ -42,10 +42,12 @@ import {
 const TREBLE_8VB_WRITTEN_SHIFT = 7;
 
 // Wide enough that a sixteenth-note slot stays clickable after formatToStave
-// redistributes space — a fixed 220px left slots as narrow as ~9px.
-const MEASURE_WIDTH = 500;
+// redistributes space — a fixed 220px left slots as narrow as ~9px. Exported
+// for renderer.test.ts/cursor.test.ts, which draw a single measure column
+// standalone and need the same positioning `renderScore` uses.
+export const MEASURE_WIDTH = 500;
 const STAVE_ROW_HEIGHT = 110;
-const SYSTEM_LEFT_MARGIN = 10;
+export const SYSTEM_LEFT_MARGIN = 10;
 const SYSTEM_TOP_MARGIN = 20;
 
 /**
@@ -160,6 +162,20 @@ export type RowSetup = {
   y: number;
 };
 
+/**
+ * The clef/transposition half of `RowSetup`, before a caller has decided
+ * where each row sits vertically — shared by the interactive `renderScore`
+ * (one tall system) and the print pipeline (many short ones per page).
+ */
+export function buildRowSetups(score: Score): Array<Omit<RowSetup, "y">> {
+  return score.layout.staves.map((assignment) => ({
+    assignment,
+    vexClef: toVexClefName(assignment.clef),
+    writtenShift:
+      assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0,
+  }));
+}
+
 // One row's contribution to a single measure column.
 type RowMeasureResult = { stave: Stave; noteAnchors: NoteAnchor[] };
 
@@ -171,6 +187,12 @@ type RowMeasureResult = { stave: Stave; noteAnchors: NoteAnchor[] };
  * `formatBegModifiers` does the same for clef/time-signature widths, which
  * otherwise differ slightly by clef.
  *
+ * `x`/`measureWidth` position this column in whatever coordinate space the
+ * caller is drawing in, and `isSystemStart` decides whether it gets a
+ * clef/time-signature — the interactive view only draws those once, at the
+ * score's first measure, but the print pipeline (render/print-pages.ts)
+ * repeats them at the start of every system, per normal engraving practice.
+ *
  * Exported for testability (see renderer.test.ts): runs against a fake
  * RenderContext, no browser or jsdom needed.
  */
@@ -179,14 +201,16 @@ export function drawMeasureColumn(
   score: Score,
   rows: RowSetup[],
   measureIndex: number,
+  x: number,
+  measureWidth: number,
+  isSystemStart: boolean,
 ): RowMeasureResult[] {
   const measure = score.measures[measureIndex];
   if (!measure) throw new Error(`No measure at index ${measureIndex}`);
-  const x = SYSTEM_LEFT_MARGIN + measureIndex * MEASURE_WIDTH;
 
   const staves = rows.map((row) => {
-    const stave = new Stave(x, row.y, MEASURE_WIDTH);
-    if (measureIndex === 0) {
+    const stave = new Stave(x, row.y, measureWidth);
+    if (isSystemStart) {
       stave.addClef(
         row.vexClef,
         "default",
@@ -283,17 +307,11 @@ export function renderScore(
   // system as a whole reserves a trailing block for the shared display.
   const rows: RowSetup[] = [];
   let y = SYSTEM_TOP_MARGIN;
-  for (const assignment of score.layout.staves) {
-    rows.push({
-      assignment,
-      vexClef: toVexClefName(assignment.clef),
-      writtenShift:
-        assignment.clef === "treble8vb" ? TREBLE_8VB_WRITTEN_SHIFT : 0,
-      y,
-    });
+  for (const base of buildRowSetups(score)) {
+    rows.push({ ...base, y });
     y +=
       STAVE_ROW_HEIGHT +
-      lyricLinesForRow(score, assignment.partIds[0]) * LYRIC_LINE_HEIGHT;
+      lyricLinesForRow(score, base.assignment.partIds[0]) * LYRIC_LINE_HEIGHT;
   }
   const systemLyricsY = y;
   const totalHeight =
@@ -316,7 +334,16 @@ export function renderScore(
   ) {
     const measure = score.measures[measureIndex];
     if (!measure) throw new Error(`No measure at index ${measureIndex}`);
-    const results = drawMeasureColumn(ctx, score, rows, measureIndex);
+    const x = SYSTEM_LEFT_MARGIN + measureIndex * MEASURE_WIDTH;
+    const results = drawMeasureColumn(
+      ctx,
+      score,
+      rows,
+      measureIndex,
+      x,
+      MEASURE_WIDTH,
+      measureIndex === 0,
+    );
     results.forEach(({ stave, noteAnchors }, rowIndex) => {
       topLineYByRow[rowIndex] = stave.getYForLine(0);
       lineSpacingByRow[rowIndex] = stave.getSpacingBetweenLines();

@@ -12,6 +12,8 @@ export type ControlPanelCallbacks = {
   onVerseChange: (verse: number) => void;
   onSave: () => void;
   onOpen: () => void;
+  onPrint: () => void;
+  onExportMusicXml: () => void;
 };
 
 export type ControlPanel = {
@@ -186,6 +188,18 @@ export function createControlPanel(
   openButton.textContent = "Open";
   openButton.addEventListener("click", callbacks.onOpen);
   mountPoint.append(openButton);
+
+  const printButton = document.createElement("button");
+  printButton.type = "button";
+  printButton.textContent = "Print";
+  printButton.addEventListener("click", callbacks.onPrint);
+  mountPoint.append(printButton);
+
+  const exportMusicXmlButton = document.createElement("button");
+  exportMusicXmlButton.type = "button";
+  exportMusicXmlButton.textContent = "Export MusicXML";
+  exportMusicXmlButton.addEventListener("click", callbacks.onExportMusicXml);
+  mountPoint.append(exportMusicXmlButton);
 
   return { undoButton, redoButton };
 }

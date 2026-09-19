@@ -1,0 +1,32 @@
+/* Imported once from main.ts (SPEC.md §8). */
+#print-pages {
+  display: none;
+}
+
+@media print {
+  #controls,
+  #score {
+    display: none;
+  }
+  #print-pages {
+    display: block;
+  }
+  /* Margins live in each page's own SVG coordinate space
+     (render/print-pages.ts), not here, so this path and a future jsPDF
+     path produce identical pages. */
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+  .page {
+    break-after: page;
+  }
+  .page:last-child {
+    break-after: auto;
+  }
+  .page svg {
+    display: block;
+    width: 100%;
+    height: auto; /* Needs the viewBox render/print-pages.ts sets, or this squashes. */
+  }
+}

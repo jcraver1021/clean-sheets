@@ -10,6 +10,8 @@ export type ControlPanelCallbacks = {
   onPlay: () => void;
   onStop: () => void;
   onVerseChange: (verse: number) => void;
+  onSave: () => void;
+  onOpen: () => void;
 };
 
 export type ControlPanel = {
@@ -172,6 +174,18 @@ export function createControlPanel(
   parts.forEach((part) =>
     createMixerRow(mountPoint, part, soloButtons, callbacks),
   );
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save";
+  saveButton.addEventListener("click", callbacks.onSave);
+  mountPoint.append(saveButton);
+
+  const openButton = document.createElement("button");
+  openButton.type = "button";
+  openButton.textContent = "Open";
+  openButton.addEventListener("click", callbacks.onOpen);
+  mountPoint.append(openButton);
 
   return { undoButton, redoButton };
 }

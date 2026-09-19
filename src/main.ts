@@ -27,8 +27,15 @@ import {
   setActiveVerse,
   setCursorTick,
 } from "./edit/tools.ts";
+import {
+  downloadScore,
+  loadFromLocalStorage,
+  pickScoreFile,
+  saveToLocalStorage,
+} from "./io/json.ts";
 import { fromDiatonic } from "./model/pitch.ts";
 import { eventAt } from "./model/query.ts";
+import type { Score } from "./model/score.ts";
 import { waitForFonts } from "./platform/fonts.ts";
 import { attachGhostNote, attachPlayhead } from "./render/cursor.ts";
 import { hitTest } from "./render/hit-test.ts";
@@ -51,28 +58,39 @@ const controlsMount = document.querySelector<HTMLDivElement>("#controls")!;
 
 let layoutIndex: LayoutIndex = { staves: [] };
 function rerender(): void {
-  layoutIndex = renderScore(container, getScore());
+  const score = getScore();
+  layoutIndex = renderScore(container, score);
+  saveToLocalStorage(score); // So a plain reload survives, not just Save/Open.
 }
 
-initHistory(createDemoScore(), rerender);
-initVoices(getScore().parts.map((part) => part.id));
+// Rebuilds everything that's keyed to a specific score's part list — not
+// just history and the mixer, but voices too (Stage 4's synths are one per
+// part). Called at startup and again whenever Open loads a different score.
+function mountScore(score: Score): void {
+  initHistory(score, rerender);
+  initVoices(score.parts.map((part) => part.id));
+  controlsMount.replaceChildren();
+  createControlPanel(
+    controlsMount,
+    score.parts.map((part) => ({ id: part.id, name: part.name })),
+    {
+      onDurationChange: setActiveDurationTicks,
+      onAccidentalChange: setAccidentalOverride,
+      onUndo: undo,
+      onRedo: redo,
+      onMuteToggle: setMuted,
+      onSoloToggle: setSolo,
+      onPlay: () =>
+        void playFrom(getScore(), getRevision(), getCursorTick() ?? 0),
+      onStop: stop,
+      onVerseChange: setActiveVerse,
+      onSave: () => downloadScore(getScore()),
+      onOpen: () => pickScoreFile(mountScore),
+    },
+  );
+}
 
-createControlPanel(
-  controlsMount,
-  getScore().parts.map((part) => ({ id: part.id, name: part.name })),
-  {
-    onDurationChange: setActiveDurationTicks,
-    onAccidentalChange: setAccidentalOverride,
-    onUndo: undo,
-    onRedo: redo,
-    onMuteToggle: setMuted,
-    onSoloToggle: setSolo,
-    onPlay: () =>
-      void playFrom(getScore(), getRevision(), getCursorTick() ?? 0),
-    onStop: stop,
-    onVerseChange: setActiveVerse,
-  },
-);
+mountScore(loadFromLocalStorage() ?? createDemoScore());
 
 // Returns null if the click missed both the SVG and any hit-testable note
 // slot — callers bail out in that case.

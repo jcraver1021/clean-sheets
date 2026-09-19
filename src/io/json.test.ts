@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Score } from "../model/score.ts";
 import {
+  jsonToScore,
   loadFromLocalStorage,
-  parseScore,
   saveToLocalStorage,
-  serializeScore,
+  scoreToJson,
 } from "./json.ts";
 
 function fixtureScore(): Score {
@@ -56,20 +56,20 @@ function fakeStorage(): Storage {
   };
 }
 
-describe("serializeScore / parseScore", () => {
+describe("scoreToJson / jsonToScore", () => {
   it("round-trips a score exactly", () => {
     const score = fixtureScore();
-    expect(parseScore(serializeScore(score))).toEqual(score);
+    expect(jsonToScore(scoreToJson(score))).toEqual(score);
   });
 
   it("throws for an unsupported schemaVersion", () => {
-    expect(() => parseScore(JSON.stringify({ schemaVersion: 99 }))).toThrow(
+    expect(() => jsonToScore(JSON.stringify({ schemaVersion: 99 }))).toThrow(
       /Unsupported schemaVersion/,
     );
   });
 
   it("throws for JSON missing schemaVersion entirely", () => {
-    expect(() => parseScore(JSON.stringify({ title: "no version" }))).toThrow(
+    expect(() => jsonToScore(JSON.stringify({ title: "no version" }))).toThrow(
       /Unsupported schemaVersion/,
     );
   });

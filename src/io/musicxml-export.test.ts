@@ -40,6 +40,10 @@ function fixtureScore(): Score {
               { step: "C", alter: 0, octave: 5 },
               { step: "E", alter: 0, octave: 5 },
             ],
+            lyrics: [
+              { verse: 1, syllable: "single", text: "Bo" },
+              { verse: 2, syllable: "begin", text: "Lo" },
+            ],
           }),
         ],
       },
@@ -50,8 +54,14 @@ function fixtureScore(): Score {
           note({
             id: "d",
             tick: 0,
-            durationTicks: QUARTER * 4,
             pitches: [{ step: "C", alter: 0, octave: 4 }],
+            lyrics: [{ verse: 1, syllable: "begin", text: "Glo" }],
+          }),
+          note({
+            id: "e",
+            tick: QUARTER,
+            pitches: [{ step: "C", alter: 0, octave: 4 }],
+            lyrics: [{ verse: 1, syllable: "middle", text: "" }],
           }),
         ],
       },
@@ -158,5 +168,28 @@ describe("scoreToMusicXml", () => {
     expect(xml).toContain('<tie type="stop"/>');
     expect(xml).toContain('<notations><tied type="start"/></notations>');
     expect(xml).toContain('<notations><tied type="stop"/></notations>');
+  });
+
+  it("emits one <lyric> per verse, syllabic mapped straight from Syllable", () => {
+    expect(xml).toContain(
+      '<lyric number="1"><syllabic>single</syllabic><text>Bo</text></lyric>',
+    );
+    expect(xml).toContain(
+      '<lyric number="2"><syllabic>begin</syllabic><text>Lo</text></lyric>',
+    );
+  });
+
+  it("puts lyrics only on a chord's first note, not every pitch in it", () => {
+    const chordNotes = xml.split("<chord/>");
+    expect(chordNotes[0]).toContain("<lyric");
+    // Everything from here to the next </note> is the chord's second note.
+    expect(chordNotes[1]!.split("</note>")[0]).not.toContain("<lyric");
+  });
+
+  it("represents a melisma's held note as an empty-text <extend/>", () => {
+    expect(xml).toContain(
+      '<lyric number="1"><syllabic>begin</syllabic><text>Glo</text></lyric>',
+    );
+    expect(xml).toContain('<lyric number="1"><extend/></lyric>');
   });
 });

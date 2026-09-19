@@ -91,6 +91,20 @@ function xmlTie(tie: Tie | undefined, tag: "tie" | "tied"): string {
   return `<${tag} type="stop"/><${tag} type="start"/>`;
 }
 
+// `Syllable`'s values are already MusicXML's own `<syllabic>` values
+// (model/score.ts), so this is a direct mapping. An empty-text entry is our
+// melisma-continuation marker (model/lyrics.ts) — MusicXML's equivalent is
+// a lyric with no text, just <extend/>, on the held note.
+function xmlLyrics(event: NoteEvent): string {
+  return (event.lyrics ?? [])
+    .map((lyric) =>
+      lyric.text === ""
+        ? `<lyric number="${lyric.verse}"><extend/></lyric>`
+        : `<lyric number="${lyric.verse}"><syllabic>${lyric.syllable}</syllabic><text>${escapeXml(lyric.text)}</text></lyric>`,
+    )
+    .join("");
+}
+
 function xmlNote(
   event: NoteEvent,
   pitch: Pitch | null,
@@ -113,6 +127,9 @@ function xmlNote(
     pitch && event.tie
       ? `<notations>${xmlTie(event.tie, "tied")}</notations>`
       : "",
+    // Lyrics belong to the chord as a whole, not every pitch in it — only
+    // the first note carries them.
+    pitch && !isChordMember ? xmlLyrics(event) : "",
     "</note>",
   ].join("");
 }

@@ -3,20 +3,20 @@ import type { Score } from "../model/score.ts";
 const LOCAL_STORAGE_KEY = "clean-sheets:score";
 
 /**
- * Serializes a score to JSON text — the same format saved to
- * `localStorage` and downloaded as a file, so both paths agree.
+ * Converts a score to JSON text — the same format saved to `localStorage`
+ * and downloaded as a file, so both paths agree.
  */
-export function serializeScore(score: Score): string {
+export function scoreToJson(score: Score): string {
   return JSON.stringify(score);
 }
 
 /**
- * Parses JSON text back into a `Score`. Throws on anything but
+ * Converts JSON text back into a `Score`. Throws on anything but
  * `schemaVersion: 1` — the only version that has ever existed — so a
  * future format change has one place to add a migration rather than
  * silently misreading an old file.
  */
-export function parseScore(json: string): Score {
+export function jsonToScore(json: string): Score {
   const parsed: unknown = JSON.parse(json);
   const schemaVersion = (parsed as Partial<Score> | null)?.schemaVersion;
   if (schemaVersion !== 1) {
@@ -34,7 +34,7 @@ export function saveToLocalStorage(
   score: Score,
   storage: Storage = localStorage,
 ): void {
-  storage.setItem(LOCAL_STORAGE_KEY, serializeScore(score));
+  storage.setItem(LOCAL_STORAGE_KEY, scoreToJson(score));
 }
 
 /**
@@ -48,7 +48,7 @@ export function loadFromLocalStorage(
   const json = storage.getItem(LOCAL_STORAGE_KEY);
   if (!json) return null;
   try {
-    return parseScore(json);
+    return jsonToScore(json);
   } catch (error) {
     console.warn("Ignoring unreadable saved score:", error);
     return null;
@@ -61,7 +61,7 @@ export function loadFromLocalStorage(
  * exports (Stage 8) will reuse.
  */
 export function downloadScore(score: Score): void {
-  const blob = new Blob([serializeScore(score)], {
+  const blob = new Blob([scoreToJson(score)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
@@ -77,7 +77,7 @@ export function downloadScore(score: Score): void {
  * with the parsed result. Silently does nothing if the user cancels —
  * there's no reliable cross-browser cancel event on a file input, so
  * there's nothing to clean up either way. `onError` gets whatever
- * `parseScore` throws for a malformed file.
+ * `jsonToScore` throws for a malformed file.
  */
 export function pickScoreFile(
   onLoad: (score: Score) => void,
@@ -91,7 +91,7 @@ export function pickScoreFile(
     if (!file) return;
     file
       .text()
-      .then((text) => onLoad(parseScore(text)))
+      .then((text) => onLoad(jsonToScore(text)))
       .catch(onError);
   });
   input.click();

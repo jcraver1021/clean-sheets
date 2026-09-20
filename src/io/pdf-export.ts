@@ -39,22 +39,12 @@ function loadBravuraBase64(): Promise<string> {
   return bravuraBase64;
 }
 
-// Two svg2pdf.js quirks VexFlow's SVG output runs straight into:
-//
-// 1. VexFlow sets font-family once, on the root <svg>, relying on normal
-//    SVG attribute inheritance for every <text> under it — but svg2pdf.js
-//    only reads presentation attributes set directly on the element being
-//    drawn, not inherited ones.
-// 2. VexFlow writes font-size as e.g. "30pt". svg2pdf.js's unit parser
-//    (`toPixels`) only recognizes "em", "px", or a bare number — anything
-//    else, including "pt", silently becomes 0. Since our page's coordinate
-//    space is already 1 unit = 1pt (jsPDF's `unit: "pt"`, matched 1:1 in
-//    the `doc.svg()` width/height below), stripping the suffix and keeping
-//    the same number preserves the exact intended size.
-//
-// Both failures are silent — text draws at size 0 with the wrong font, so
-// notation vanishes while plain vector ink (staff lines, stems) is
-// unaffected.
+// Two silent svg2pdf.js gaps: it doesn't resolve inherited SVG attributes
+// (VexFlow sets font-family once, on the root <svg>), and its unit parser
+// doesn't recognize "pt" on font-size (VexFlow writes "30pt"), silently
+// treating it as 0. Both leave notation blank while plain vector ink
+// (staff lines, stems) still draws fine. Stripping "pt" is safe since our
+// page's coordinate space is already 1 unit = 1pt.
 function fixTextAttributesForSvg2pdf(svg: SVGSVGElement): void {
   const fontFamily = svg.getAttribute("font-family");
   svg.querySelectorAll("text").forEach((text) => {

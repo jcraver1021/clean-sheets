@@ -15,6 +15,7 @@ export type ControlPanelCallbacks = {
   onPrint: () => void;
   onExportMusicXml: () => void;
   onImportMusicXml: () => void;
+  onDownloadPdf: () => void;
 };
 
 export type ControlPanel = {
@@ -207,6 +208,12 @@ export function createControlPanel(
   importMusicXmlButton.textContent = "Import MusicXML";
   importMusicXmlButton.addEventListener("click", callbacks.onImportMusicXml);
   mountPoint.append(importMusicXmlButton);
+
+  const downloadPdfButton = document.createElement("button");
+  downloadPdfButton.type = "button";
+  downloadPdfButton.textContent = "Download PDF";
+  downloadPdfButton.addEventListener("click", callbacks.onDownloadPdf);
+  mountPoint.append(downloadPdfButton);
 
   return { undoButton, redoButton };
 }

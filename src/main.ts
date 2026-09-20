@@ -36,6 +36,7 @@ import {
 } from "./io/json.ts";
 import { downloadMusicXml } from "./io/musicxml-export.ts";
 import { pickMusicXmlFile } from "./io/musicxml-import.ts";
+import { downloadPdf } from "./io/pdf-export.ts";
 import { fromDiatonic } from "./model/pitch.ts";
 import { eventAt } from "./model/query.ts";
 import type { Score } from "./model/score.ts";
@@ -93,6 +94,7 @@ function mountScore(score: Score): void {
       onOpen: () => pickScoreFile(mountScore),
       onExportMusicXml: () => downloadMusicXml(getScore()),
       onImportMusicXml: () => pickMusicXmlFile(mountScore),
+      onDownloadPdf: () => void downloadPdf(printMount, getScore()),
       onPrint: () => {
         renderPrintPages(printMount, getScore());
         window.print();

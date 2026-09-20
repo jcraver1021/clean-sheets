@@ -14,6 +14,7 @@ export type ControlPanelCallbacks = {
   onOpen: () => void;
   onPrint: () => void;
   onExportMusicXml: () => void;
+  onImportMusicXml: () => void;
 };
 
 export type ControlPanel = {
@@ -200,6 +201,12 @@ export function createControlPanel(
   exportMusicXmlButton.textContent = "Export MusicXML";
   exportMusicXmlButton.addEventListener("click", callbacks.onExportMusicXml);
   mountPoint.append(exportMusicXmlButton);
+
+  const importMusicXmlButton = document.createElement("button");
+  importMusicXmlButton.type = "button";
+  importMusicXmlButton.textContent = "Import MusicXML";
+  importMusicXmlButton.addEventListener("click", callbacks.onImportMusicXml);
+  mountPoint.append(importMusicXmlButton);
 
   return { undoButton, redoButton };
 }

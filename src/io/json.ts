@@ -1,5 +1,6 @@
 import type { Score } from "../model/score.ts";
 import { triggerDownload } from "./download.ts";
+import { pickFile } from "./file-picker.ts";
 
 const LOCAL_STORAGE_KEY = "clean-sheets:score";
 
@@ -68,25 +69,11 @@ export function downloadScore(score: Score): void {
 
 /**
  * Opens the browser's file picker for a `.json` score and calls `onLoad`
- * with the parsed result. Silently does nothing if the user cancels —
- * there's no reliable cross-browser cancel event on a file input, so
- * there's nothing to clean up either way. `onError` gets whatever
- * `jsonToScore` throws for a malformed file.
+ * with the parsed result.
  */
 export function pickScoreFile(
   onLoad: (score: Score) => void,
   onError: (error: unknown) => void = console.error,
 ): void {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "application/json";
-  input.addEventListener("change", () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    file
-      .text()
-      .then((text) => onLoad(jsonToScore(text)))
-      .catch(onError);
-  });
-  input.click();
+  pickFile("application/json", jsonToScore, onLoad, onError);
 }

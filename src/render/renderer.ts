@@ -46,7 +46,11 @@ const TREBLE_8VB_WRITTEN_SHIFT = 7;
 // for renderer.test.ts/cursor.test.ts, which draw a single measure column
 // standalone and need the same positioning `renderScore` uses.
 export const MEASURE_WIDTH = 500;
-const STAVE_ROW_HEIGHT = 110;
+// Wide enough that adjacent parts read as clearly separate at a glance —
+// hit-testing itself is already unambiguous (layout-index.ts's claim
+// regions tile the system with no gaps), but 110 read as visually cramped
+// enough that misclicking the wrong part's note was easy.
+const STAVE_ROW_HEIGHT = 170;
 export const SYSTEM_LEFT_MARGIN = 10;
 const SYSTEM_TOP_MARGIN = 20;
 

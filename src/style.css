@@ -4,12 +4,33 @@ body {
   font-family: system-ui, sans-serif;
 }
 
+#score-wrapper {
+  position: relative;
+}
+
 #score {
   position: relative;
+  overflow-x: auto;
 }
 
 #score svg {
   display: block;
+}
+
+#scroll-hint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2.5rem;
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.15));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+#scroll-hint.visible {
+  opacity: 1;
 }
 
 .lyric-editor {

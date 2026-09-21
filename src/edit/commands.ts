@@ -144,3 +144,44 @@ export function deleteLyric(
   if (!event.lyrics) return;
   event.lyrics = event.lyrics.filter((lyric) => lyric.verse !== verse);
 }
+
+/**
+ * Renames the score.
+ */
+export function setTitle(score: Score, title: string): void {
+  score.title = title;
+}
+
+/**
+ * Sets the score's global tempo. There's no UI for mid-score tempo changes
+ * yet, so this always targets `tempoMap[0]` — the invariant (model/score.ts)
+ * that it starts at tick 0 makes that the whole tempo for now.
+ */
+export function setTempo(score: Score, bpm: number): void {
+  score.tempoMap[0]!.bpm = bpm;
+}
+
+/**
+ * Adds a new, empty part with its own stave (`treble` clef by default —
+ * same fallback musicxml-export.ts uses for a part with no assignment).
+ */
+export function addPart(score: Score, name: string): void {
+  const id = crypto.randomUUID();
+  score.parts.push({ id, name, events: [] });
+  score.layout.staves.push({ clef: "treble", partIds: [id] });
+}
+
+/**
+ * Removes a part and its stave. Refuses to remove the last part — an
+ * empty score isn't a state anything downstream (rendering, playback)
+ * is expected to handle.
+ */
+export function removePart(score: Score, partId: string): void {
+  if (score.parts.length <= 1) {
+    throw new Error("Cannot remove the last part");
+  }
+  score.parts = score.parts.filter((part) => part.id !== partId);
+  score.layout.staves = score.layout.staves.filter(
+    (stave) => !stave.partIds.includes(partId),
+  );
+}

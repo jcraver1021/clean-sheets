@@ -1,12 +1,16 @@
 import type { AccidentalOverride } from "../edit/tools.ts";
 
 export type ControlPanelCallbacks = {
+  onTitleChange: (title: string) => void;
   onDurationChange: (durationTicks: number) => void;
   onAccidentalChange: (override: AccidentalOverride) => void;
   onUndo: () => void;
   onRedo: () => void;
+  onTempoChange: (bpm: number) => void;
   onMuteToggle: (partId: string, muted: boolean) => void;
   onSoloToggle: (partId: string | null) => void;
+  onAddPart: () => void;
+  onRemovePart: (partId: string) => void;
   onPlay: () => void;
   onStop: () => void;
   onVerseChange: (verse: number) => void;
@@ -80,7 +84,10 @@ function createMixerRow(
   mountPoint: HTMLElement,
   part: { id: string; name: string },
   soloButtons: HTMLButtonElement[],
-  callbacks: Pick<ControlPanelCallbacks, "onMuteToggle" | "onSoloToggle">,
+  callbacks: Pick<
+    ControlPanelCallbacks,
+    "onMuteToggle" | "onSoloToggle" | "onRemovePart"
+  >,
 ): void {
   const row = document.createElement("span");
 
@@ -108,6 +115,12 @@ function createMixerRow(
   soloButtons.push(soloButton);
   row.append(soloButton);
 
+  const removeButton = document.createElement("button");
+  removeButton.type = "button";
+  removeButton.textContent = "Remove";
+  removeButton.addEventListener("click", () => callbacks.onRemovePart(part.id));
+  row.append(removeButton);
+
   mountPoint.append(row);
 }
 
@@ -121,9 +134,20 @@ function createMixerRow(
  */
 export function createControlPanel(
   mountPoint: HTMLElement,
+  title: string,
+  bpm: number,
   parts: Array<{ id: string; name: string }>,
   callbacks: ControlPanelCallbacks,
 ): ControlPanel {
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.value = title;
+  titleInput.size = 24;
+  titleInput.addEventListener("change", () => {
+    callbacks.onTitleChange(titleInput.value);
+  });
+  mountPoint.append(titleInput);
+
   createButtonGroup(
     mountPoint,
     DURATIONS.map((d) => ({ label: d.label, value: d.ticks })),
@@ -149,6 +173,19 @@ export function createControlPanel(
   });
   verseLabel.append(verseInput);
   mountPoint.append(verseLabel);
+
+  const tempoLabel = document.createElement("label");
+  tempoLabel.textContent = "Tempo";
+  const tempoInput = document.createElement("input");
+  tempoInput.type = "number";
+  tempoInput.min = "1";
+  tempoInput.value = String(bpm);
+  tempoInput.size = 3;
+  tempoInput.addEventListener("change", () => {
+    callbacks.onTempoChange(Math.max(1, Number(tempoInput.value) || bpm));
+  });
+  tempoLabel.append(tempoInput);
+  mountPoint.append(tempoLabel);
 
   const playButton = document.createElement("button");
   playButton.type = "button";
@@ -178,6 +215,12 @@ export function createControlPanel(
   parts.forEach((part) =>
     createMixerRow(mountPoint, part, soloButtons, callbacks),
   );
+
+  const addPartButton = document.createElement("button");
+  addPartButton.type = "button";
+  addPartButton.textContent = "Add Part";
+  addPartButton.addEventListener("click", callbacks.onAddPart);
+  mountPoint.append(addPartButton);
 
   const saveButton = document.createElement("button");
   saveButton.type = "button";

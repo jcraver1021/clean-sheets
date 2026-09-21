@@ -14,9 +14,13 @@ const PAGE_MARGIN_PT = 54;
 // view's MEASURE_WIDTH/STAVE_ROW_HEIGHT, which are oversized for
 // on-screen click targets, not for fitting real systems on a page.
 const PRINT_MEASURE_WIDTH_PT = 140;
-// 70pt/row + the gap below fits two 4-part systems per Letter page
-// (2*(4*70+24) = 632pt of 684pt usable) — real hymnals' usual layout.
-const PRINT_STAVE_ROW_HEIGHT_PT = 70;
+// Wide enough to clear worst-case stem length on both sides of the gap
+// between two staves — 70pt (the old value) left only ~30pt between
+// facing staff lines, and real eighth-note runs (not just the toy demo
+// score's quarter notes) routinely stem further than that, so adjacent
+// parts' notation visually collided. Confirmed by rendering a real,
+// denser score (Wellerman) to PDF and rasterizing it for inspection.
+const PRINT_STAVE_ROW_HEIGHT_PT = 100;
 const SYSTEM_GAP_PT = 24;
 
 // Just the rows' own ink — callers add SYSTEM_GAP_PT to get the actual

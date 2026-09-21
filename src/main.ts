@@ -5,10 +5,14 @@ import { initVoices, setMuted, setSolo } from "./audio/engine.ts";
 import { isPlaying, playFrom, playheadTick, stop } from "./audio/playback.ts";
 import { createDemoScore } from "./demo-score.ts";
 import {
+  addPart,
   deleteEventAt,
   deleteLyric,
   insertNote,
+  removePart,
   setLyric,
+  setTempo,
+  setTitle,
 } from "./edit/commands.ts";
 import {
   commit,
@@ -49,6 +53,7 @@ import { renderPrintPages } from "./render/print-pages.ts";
 import { renderScore } from "./render/renderer.ts";
 import { createControlPanel } from "./ui/control-panel.ts";
 import { openLyricEditor } from "./ui/lyric-editor.ts";
+import { attachScrollHint } from "./ui/scroll-hint.ts";
 
 // VexFlow's SMuFL glyphs are <text> in the Bravura web font, loaded async
 // without being awaited on import — drawing before it's ready misaligns
@@ -61,6 +66,7 @@ if (!ready) {
 const container = document.querySelector<HTMLDivElement>("#score")!;
 const controlsMount = document.querySelector<HTMLDivElement>("#controls")!;
 const printMount = document.querySelector<HTMLDivElement>("#print-pages")!;
+attachScrollHint(container, document.querySelector("#scroll-hint")!);
 
 let layoutIndex: LayoutIndex = { staves: [] };
 function rerender(): void {
@@ -75,17 +81,36 @@ function rerender(): void {
 function mountScore(score: Score): void {
   initHistory(score, rerender);
   initVoices(score.parts.map((part) => part.id));
+  setSolo(null); // Adding/removing a part remounts — a stale soloPartId would otherwise silence every part.
   controlsMount.replaceChildren();
   createControlPanel(
     controlsMount,
+    score.title,
+    score.tempoMap[0]!.bpm,
     score.parts.map((part) => ({ id: part.id, name: part.name })),
     {
+      onTitleChange: (title) => commit((score) => setTitle(score, title)),
       onDurationChange: setActiveDurationTicks,
       onAccidentalChange: setAccidentalOverride,
       onUndo: undo,
       onRedo: redo,
+      onTempoChange: (bpm) => commit((score) => setTempo(score, bpm)),
       onMuteToggle: setMuted,
       onSoloToggle: setSolo,
+      onAddPart: () => {
+        const name = window.prompt("Part name?");
+        if (!name) return;
+        commit((score) => addPart(score, name));
+        mountScore(getScore());
+      },
+      onRemovePart: (partId) => {
+        if (getScore().parts.length <= 1) return;
+        if (!window.confirm("Remove this part? Its notes will be deleted.")) {
+          return;
+        }
+        commit((score) => removePart(score, partId));
+        mountScore(getScore());
+      },
       onPlay: () =>
         void playFrom(getScore(), getRevision(), getCursorTick() ?? 0),
       onStop: stop,

@@ -15,4 +15,8 @@ export default defineConfig([
     settings: { react: { version: "18.3" } },
   },
   tseslint.configs.recommended,
+  {
+    files: ["scripts/**/*.ts"],
+    languageOptions: { globals: globals.node },
+  },
 ]);

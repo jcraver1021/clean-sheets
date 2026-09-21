@@ -1,7 +1,7 @@
 {
   "name": "clean-sheets",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,14 +10,18 @@
     "format": "prettier --write .",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "xml:build": "tsx scripts/build-musicxml.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.2",
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
     "jiti": "^2.7.0",
+    "linkedom": "^0.18.13",
     "prettier": "^3.9.6",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.68.0",
     "vite": "^8.2.2",
